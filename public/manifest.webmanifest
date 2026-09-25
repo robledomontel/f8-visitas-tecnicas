@@ -1,0 +1,16 @@
+{
+  "name": "F8 Visitas Técnicas",
+  "short_name": "F8 Visitas",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0876c9",
+  "icons": [
+    {
+      "src": "/f8-logo.jpg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
