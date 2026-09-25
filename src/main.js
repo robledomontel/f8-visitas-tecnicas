@@ -1,7 +1,7 @@
 import {createClient} from '@supabase/supabase-js';import './style.css';
 const URL='https://glemfgdayisfxfmrdzph.supabase.co',KEY='sb_publishable_EA4YqvXGxMggOprVfmeK9A_W0zEbB5N';
 const supabase=createClient(URL,KEY);const app=document.querySelector('#app');
-const logo='<div class="brand"><img src="/f8-logo.jpg" alt="F8 Soluções em Tecnologia"></div>';
+const logo='<div class="brand"><img src="/f8-logo.svg" alt="F8 Soluções em Tecnologia"></div>';
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 async function loginView(msg=''){app.innerHTML=`<main class="login"><section class="loginCard">${logo}<h1>Visitas Técnicas</h1><p>Acesso restrito à equipe F8.</p><form id="login"><label>Usuário<input name="user" autocomplete="username" required placeholder="robledo"></label><label>Senha<input name="pass" type="password" autocomplete="current-password" required></label><button>Entrar</button><div class="error">${esc(msg)}</div></form></section></main>`;document.querySelector('#login').onsubmit=async e=>{e.preventDefault();let f=new FormData(e.target),u=f.get('user').trim().toLowerCase(),p=f.get('pass');let {error}=await supabase.auth.signInWithPassword({email:u+'@f8.local',password:p});if(error)loginView('Usuário ou senha inválidos.');else boot()}}
 async function boot(){let {data:{session}}=await supabase.auth.getSession();if(!session)return loginView();let {data:profile}=await supabase.from('perfis').select('*').eq('id',session.user.id).maybeSingle();if(!profile){await supabase.auth.signOut();return loginView('Usuário sem permissão no sistema.')}dashboard(profile)}
