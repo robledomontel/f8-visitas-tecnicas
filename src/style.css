@@ -29,3 +29,5 @@ header{width:100%;max-width:100%}
  nav button{width:100%;min-width:0;max-width:100%;overflow:hidden}
  nav span{font-size:10px;line-height:1.1}
 }
+
+.photoBox{border:1px solid #d8e3ec;border-radius:14px;padding:16px;background:#f8fbfd}.photoBox h2{margin:0 0 5px}.cameraBtn{display:flex!important;align-items:center;justify-content:center;min-height:52px;border:2px dashed #1680c4;border-radius:12px;color:#126da7;font-weight:700;background:#fff;cursor:pointer}.cameraBtn input{position:absolute;opacity:0;width:1px;height:1px}.photoPreview{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.photoPreview span{font-size:12px;background:#e8f3fa;padding:7px 9px;border-radius:8px}.reportRow{display:flex;align-items:center;justify-content:space-between;gap:12px}.reportRow>div{min-width:0}.reportRow span{display:block}.reportBtn{flex:0 0 auto;background:#137dbc;color:white;border:0;border-radius:9px;padding:10px 12px;font-weight:700}@media(max-width:720px){.reportRow{align-items:flex-start}.reportBtn{font-size:12px;padding:9px}.photoBox{padding:13px}}
