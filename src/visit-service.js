@@ -2,7 +2,6 @@ export const textFields = ['cliente_id', 'local_id', 'data_visita', 'hora_chegad
 export function visitPayload(form) {
   const payload = Object.fromEntries(textFields.map(key => [key, form.get(key) || null]));
   for (const key of ['necessita_orcamento', 'necessita_nova_visita']) payload[key] = form.has(key);
-  for (const key of ['latitude', 'longitude']) payload[key] = form.get(key) === '' ? null : Number(form.get(key));
   return payload;
 }
 export function checked(result) {

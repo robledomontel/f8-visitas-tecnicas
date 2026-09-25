@@ -110,7 +110,6 @@ export async function visitForm({db, el, id, back}) {
     <label>Status<select name="status" required>${options(allStatuses,v.status)}</select></label>
     <label class="check"><input name="necessita_orcamento" type="checkbox" ${v.necessita_orcamento ? 'checked' : ''}> Necessita orçamento</label>
     <label class="check"><input name="necessita_nova_visita" type="checkbox" ${v.necessita_nova_visita ? 'checked' : ''}> Necessita nova visita</label>
-    ${input('latitude','Latitude','number','step="any" min="-90" max="90"')}${input('longitude','Longitude','number','step="any" min="-180" max="180"')}
     <section class="wide photoBox"><h2>Registro fotográfico</h2><p class="muted">Adicione fotos da galeria ou tire uma foto. Alterações de categoria e legenda são salvas junto com a visita. A remoção é aplicada após confirmação.</p>
       <div id="existingPhotos" class="photoGrid"></div>
       <label>Categoria das novas fotos<select id="newCategory">${options(categories,'antes')}</select></label>
