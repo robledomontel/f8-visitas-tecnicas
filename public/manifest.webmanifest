@@ -7,9 +7,9 @@
   "theme_color": "#0876c9",
   "icons": [
     {
-      "src": "/f8-logo.jpg",
+      "src": "/f8-icon.svg",
       "sizes": "any",
-      "type": "image/jpeg",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]
