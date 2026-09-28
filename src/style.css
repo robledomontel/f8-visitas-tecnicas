@@ -104,3 +104,5 @@ nav i{font-style:normal;display:inline-block;min-width:24px;text-align:center;ma
  .loginCard .brand img{width:205px;max-height:125px}
 }
 @media(max-width:360px){.cards{grid-template-columns:minmax(0,1fr)}.form{padding:12px}.welcome h1{font-size:24px}}
+
+#reportPreview{position:fixed;inset:0;z-index:1000;background:#fff;overflow:auto;padding:24px;box-sizing:border-box}#reportPreview .reportActions{display:flex;gap:12px;justify-content:flex-end;position:sticky;top:0;background:#fff;padding:8px 0 16px}#reportPreview .reportActions button{width:auto}#reportPreview .reportActions button:first-child{background:#eaf2f7;color:#145b91}@media print{#app{display:none!important}#reportPreview{position:static!important;overflow:visible!important;padding:0!important}#reportPreview .reportActions{display:none!important}}
