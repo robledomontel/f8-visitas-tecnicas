@@ -43,7 +43,7 @@ function database() {
 }
 test('cleared fields become null, booleans false, coordinates and internal fields excluded',()=>{
   const form=new FormData();form.set('cliente_id','client');form.set('hora_chegada','');form.set('latitude','0');form.set('longitude','');form.set('criado_por','intruder');form.set('necessita_nova_visita','on');
-  const payload=visitPayload(form);assert.equal(payload.hora_chegada,null);assert.equal(payload.necessita_orcamento,false);assert.equal(payload.necessita_nova_visita,true);assert.equal('latitude' in payload,false);assert.equal('longitude' in payload,false);assert.equal(payload.criado_por,undefined);
+  const payload=visitPayload(form);assert.equal(payload.hora_chegada,null);assert.equal(payload.necessita_orcamento,false);assert.equal(payload.necessita_nova_visita,true);assert.equal('latitude' in payload,false);assert.equal('longitude' in payload,false);assert.equal('local_id' in payload,false);assert.equal(payload.criado_por,undefined);
 });
 test('create and update persist fields and reject stale versions',async()=>{
   const db=database(),service=visitService(db);
@@ -79,8 +79,9 @@ test('form exposes editable fields and existing values; cancel deletion does not
   const db=database(),service=visitService(db),visit=await service.save({cliente_id:'client',numero:42,status:'parcial',data_visita:'2026-09-25',diagnostico:'Diagnóstico salvo',necessita_orcamento:true,necessita_nova_visita:true},null,'user');
   const el=document.querySelector('#page');await visitForm({db,el,id:visit.id,back:()=>{}});
   assert.equal(document.querySelector('[name=diagnostico]').value,'Diagnóstico salvo');
-  for(const name of ['cliente_id','local_id','data_visita','hora_chegada','hora_saida','responsavel_local','telefone_responsavel','tipo','sistema','solicitacao','situacao_encontrada','diagnostico','servico_executado','testes_realizados','recomendacoes','observacoes','status','necessita_orcamento','necessita_nova_visita'])assert.ok(document.querySelector(`[name=${name}]`),name);
+  for(const name of ['cliente_id','data_visita','hora_chegada','hora_saida','responsavel_local','telefone_responsavel','tipo','sistema','solicitacao','situacao_encontrada','diagnostico','servico_executado','testes_realizados','recomendacoes','observacoes','status','necessita_orcamento','necessita_nova_visita'])assert.ok(document.querySelector(`[name=${name}]`),name);
   assert.equal(document.querySelector('[name=necessita_orcamento]').checked,true);
+  assert.equal(document.querySelector('[name=local_id]'),null);
   await manageVisits({db,el,profile:{},report:()=>{},edit:()=>{}});
   document.querySelector('[data-delete]').click();assert.ok(document.querySelector('dialog').open);
   document.querySelector('[data-cancel]').click();await new Promise(resolve=>setTimeout(resolve,0));
