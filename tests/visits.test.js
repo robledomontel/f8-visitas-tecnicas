@@ -87,13 +87,19 @@ test('form exposes editable fields and existing values; cancel deletion does not
   document.querySelector('[data-cancel]').click();await new Promise(resolve=>setTimeout(resolve,0));
   assert.equal(db.tables.visitas.length,1);assert.equal(document.querySelector('dialog'),null);
 });
-test('report opens synchronously and renders escaped visit data plus signed photos',async()=>{
+test('report opens an in-page preview and prints from the user action',async()=>{
   const source=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
   const reportCode=source.slice(source.indexOf('async function abrirRelatorio'),source.indexOf('async function page'));
-  let html='',opened=false;
-  const popup={document:{write:value=>{html+=value;},open:()=>{html='';},close:()=>{}},close:()=>{}};
-  const db={from:table=>({select(){return this;},eq(){assert.ok(opened,'popup must precede asynchronous queries');return this;},single:async()=>({data:{numero:7,clientes:{nome:'Cliente <teste>'},diagnostico:'Diagnóstico revisado'}}),then(resolve){return Promise.resolve({data:[{arquivo_path:'7/photo.png',categoria:'antes'}]}).then(resolve);}}),storage:{from:()=>({createSignedUrl:async()=>({data:{signedUrl:'https://example.test/photo.png'}})})}};
+  const dom=new JSDOM('<div id="app">Dashboard</div>',{url:'https://example.test'});
+  let printed=0;
+  dom.window.print=()=>{printed++;};
+  const db={from:table=>({select(){return this;},eq(){return this;},single:async()=>({data:{numero:7,clientes:{nome:'Cliente <teste>'},diagnostico:'Diagnóstico revisado'}}),then(resolve){return Promise.resolve({data:[{arquivo_path:'7/photo.png',categoria:'antes'}]}).then(resolve);}}),storage:{from:()=>({createSignedUrl:async()=>({data:{signedUrl:'https://example.test/photo.png'}})})}};
   const esc=value=>String(value??'').replaceAll('<','&lt;').replaceAll('>','&gt;');
-  const report=new Function('supabase','window','esc','alert',`${reportCode};return abrirRelatorio;`)(db,{open:()=>{opened=true;return popup;}},esc,message=>{throw Error(message);});
-  await report('7');assert.match(html,/Cliente &lt;teste&gt;/);assert.match(html,/Diagnóstico revisado/);assert.match(html,/https:\/\/example.test\/photo.png/);assert.match(html,/Imprimir \/ Salvar PDF/);
+  const report=new Function('supabase','window','document','esc',`${reportCode};return abrirRelatorio;`)(db,dom.window,dom.window.document,esc);
+  await report('7');
+  const preview=dom.window.document.querySelector('#reportPreview');
+  assert.ok(preview);assert.match(preview.innerHTML,/Cliente &lt;teste&gt;/);assert.match(preview.innerHTML,/Diagnóstico revisado/);
+  assert.match(preview.innerHTML,/https:\/\/example.test\/photo.png/);
+  preview.querySelector('#printReportButton').click();assert.equal(printed,1);
+  preview.querySelector('#closeReportButton').click();assert.equal(dom.window.document.querySelector('#reportPreview'),null);
 });
