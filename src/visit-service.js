@@ -1,4 +1,4 @@
-export const textFields = ['cliente_id', 'local_id', 'data_visita', 'hora_chegada', 'hora_saida', 'responsavel_local', 'telefone_responsavel', 'tipo', 'sistema', 'solicitacao', 'situacao_encontrada', 'diagnostico', 'servico_executado', 'testes_realizados', 'recomendacoes', 'observacoes', 'status'];
+export const textFields = ['cliente_id', 'data_visita', 'hora_chegada', 'hora_saida', 'responsavel_local', 'telefone_responsavel', 'tipo', 'sistema', 'solicitacao', 'situacao_encontrada', 'diagnostico', 'servico_executado', 'testes_realizados', 'recomendacoes', 'observacoes', 'status'];
 export function visitPayload(form) {
   const payload = Object.fromEntries(textFields.map(key => [key, form.get(key) || null]));
   for (const key of ['necessita_orcamento', 'necessita_nova_visita']) payload[key] = form.has(key);
