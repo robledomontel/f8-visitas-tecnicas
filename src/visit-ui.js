@@ -84,11 +84,10 @@ export async function manageVisits({db, el, profile, report, edit}) {
 export async function visitForm({db, el, id, back}) {
   const service = visitService(db);
   el.innerHTML = '<p role="status">Carregando cadastro…</p>';
-  let visit, photos, clients, locations;
+  let visit, photos, clients;
   try {
-    [clients, locations, visit, photos] = await Promise.all([
+    [clients, visit, photos] = await Promise.all([
       db.from('clientes').select('id,nome').order('nome').then(checked),
-      db.from('locais').select('id,cliente_id,nome,endereco').order('nome').then(checked),
       id ? db.from('visitas').select('*').eq('id',id).single().then(checked) : null,
       id ? db.from('fotos_visita').select('*').eq('visita_id',id).order('criado_em').then(checked) : [],
     ]);
@@ -102,7 +101,6 @@ export async function visitForm({db, el, id, back}) {
   const allStatuses = {...statuses}; if (v.status) allStatuses[v.status] ||= v.status;
   el.innerHTML = `<div class="welcome"><h1>${id ? `Editar visita #${v.numero}` : 'Nova visita técnica'}</h1><button type="button" class="ghost" id="backVisits">Voltar</button></div><p role="status" id="saveMessage"></p><form id="visit" class="form">
     <label>Cliente<select name="cliente_id" required><option value="">Selecione</option>${clients.map(c => `<option value="${c.id}" ${c.id === v.cliente_id ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></label>
-    <label>Local<select name="local_id"></select></label>
     ${input('data_visita','Data','date','required')}${input('hora_chegada','Hora chegada','time','step="1"')}${input('hora_saida','Hora saída','time','step="1"')}
     ${input('responsavel_local','Responsável no local')}${input('telefone_responsavel','Telefone responsável','tel')}
     <label>Tipo<select name="tipo"><option value="">Selecione</option>${options(types,v.tipo)}</select></label>${input('sistema','Sistema')}
@@ -121,12 +119,6 @@ export async function visitForm({db, el, id, back}) {
   dispose = () => pending.forEach(item => URL.revokeObjectURL(item.url));
   form.oninput = () => {dirty = true;}; form.onchange = () => {dirty = true;};
   el.querySelector('#backVisits').onclick = back;
-  const locationSelect = form.elements.local_id;
-  function renderLocations(selected = '') {
-    locationSelect.innerHTML = '<option value="">Sem local cadastrado</option>' + locations.filter(l => l.cliente_id === form.elements.cliente_id.value).map(l => `<option value="${l.id}" ${l.id === selected ? 'selected' : ''}>${esc(l.nome || l.endereco || 'Local cadastrado')}</option>`).join('');
-  }
-  renderLocations(v.local_id);
-  form.elements.cliente_id.onchange = () => {renderLocations(); dirty = true;};
   async function renderPhotos() {
     const target = el.querySelector('#existingPhotos');
     target.innerHTML = photos.map(photo => `<article class="photoCard" data-photo="${photo.id}"><div data-image>Carregando foto…</div><label>Categoria<select data-category>${options({...categories, [photo.categoria]:categories[photo.categoria] || photo.categoria},photo.categoria)}</select></label><label>Legenda<input data-caption value="${esc(photo.legenda)}"></label><button type="button" class="danger" data-remove>Remover foto</button></article>`).join('');
@@ -173,6 +165,8 @@ export async function visitForm({db, el, id, back}) {
   form.onsubmit = async event => {
     event.preventDefault(); if (busy) return;
     const payload = visitPayload(new FormData(form));
+    // A prior location remains stored unless the visit moves to another client.
+    if (visit && payload.cliente_id !== visit.cliente_id) payload.local_id = null;
     setBusy(true); message.textContent = 'Salvando visita…';
     let savedThisAttempt = false;
     try {
