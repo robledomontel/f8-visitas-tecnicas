@@ -77,37 +77,25 @@ export async function quotesPage({db,el,profile,back}){
       el.querySelector('#printQuote').onclick=()=>{
         const current={...q,...Object.fromEntries(new FormData(f).entries()),itens:getItems()};
         const preview=document.createElement('section');preview.id='reportPreview';
-        preview.innerHTML=`<div class="reportActions"><button type="button" id="closeQuotePrint">Voltar</button><button type="button" id="printQuoteNow">Imprimir</button><button type="button" id="saveQuotePdf">Salvar PDF</button><button type="button" id="shareQuotePdf" hidden>Compartilhar PDF</button><button type="button" id="emailQuotePdf">Enviar por e-mail</button><button type="button" id="whatsQuotePdf">Enviar por WhatsApp</button></div><p id="quoteShareMessage" class="shareMessage" role="status"></p>
+        preview.innerHTML=`<div class="reportActions"><button type="button" id="closeQuotePrint">Voltar</button><button type="button" id="shareQuotePdf">Compartilhar PDF</button></div><p id="quoteShareMessage" class="shareMessage" role="status"></p>
         <header><img src="/f8-logo.svg" alt="F8 Soluções em Tecnologia"></header><h1>Orçamento #${esc(current.numero)}</h1><p><b>Cliente:</b> ${esc(current.cliente)}<br><b>Projeto:</b> ${esc(current.projeto)}<br><b>Data:</b> ${date(current.data)} · <b>Validade:</b> ${date(current.validade)}<br><b>Contato:</b> ${esc(current.telefone)} ${esc(current.email)}</p>
         <table class="quotePrintTable"><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unitário</th><th>Total</th></tr></thead><tbody>${current.itens.map(i=>`<tr><td>${esc(i.descricao)}</td><td>${esc(i.quantidade)}</td><td>${money(i.valor)}</td><td>${money(numeric(i.quantidade)*numeric(i.valor))}</td></tr>`).join('')}</tbody></table>
         <p><b>Desconto:</b> ${money(current.desconto)} · <b>Acréscimo:</b> ${money(current.acrescimo)}</p><h2>Total: ${money(total(current))}</h2><p><b>Pagamento:</b> ${esc(current.pagamento)}</p><p><b>Observações:</b> ${esc(current.observacoes)}</p><p>F8 Soluções em Tecnologia · WhatsApp (98) 99223-8387</p>`;
-        document.body.append(preview);preview.querySelector('#closeQuotePrint').onclick=()=>preview.remove();preview.querySelector('#printQuoteNow').onclick=()=>window.print();
+        document.body.append(preview);preview.querySelector('#closeQuotePrint').onclick=()=>preview.remove();
         const filename=`Orcamento-F8-${String(current.numero||'sem-numero').replace(/[^a-zA-Z0-9_-]/g,'-')}.pdf`;
         const makeFile=()=>new File([quotePdf(current).output('blob')],filename,{type:'application/pdf'});
-        const download=()=>quotePdf(current).save(filename);
-        preview.querySelector('#saveQuotePdf').onclick=download;
         const shareButton=preview.querySelector('#shareQuotePdf');
-        if(navigator.share && navigator.canShare){
-          try{if(navigator.canShare({files:[makeFile()]}))shareButton.hidden=false}catch{}
-        }
         shareButton.onclick=async()=>{
-          try{await navigator.share({files:[makeFile()],title:`Orçamento F8 #${current.numero}`,text:`Orçamento F8 #${current.numero} para ${current.cliente}`})}
-          catch(error){if(error.name!=='AbortError')preview.querySelector('#quoteShareMessage').textContent='Não foi possível compartilhar. Salve o PDF e anexe-o manualmente.'}
-        };
-        const message=`Segue o orçamento F8 #${current.numero} para ${current.cliente}. Anexe o arquivo ${filename}.`;
-        preview.querySelector('#emailQuotePdf').onclick=()=>{
-          download();
-          preview.querySelector('#quoteShareMessage').textContent=`Anexe o PDF ${filename} ao e-mail que será aberto.`;
-          window.location.href=`mailto:${encodeURIComponent(current.email||'')}?subject=${encodeURIComponent(`Orçamento F8 #${current.numero}`)}&body=${encodeURIComponent(message)}`;
-        };
-        preview.querySelector('#whatsQuotePdf').onclick=()=>{
-          const raw=String(current.telefone||'').replace(/\D/g,'');
-          const phone=/^\d{10,11}$/.test(raw)?`55${raw}`:/^55\d{10,11}$/.test(raw)?raw:'';
-          const url=`https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-          const opened=window.open(url,'_blank');
-          if(!opened){preview.querySelector('#quoteShareMessage').textContent='Permita a abertura do WhatsApp neste navegador e tente novamente.';return}
-          download();
-          preview.querySelector('#quoteShareMessage').textContent=`Anexe o PDF ${filename} à conversa do WhatsApp que foi aberta.`;
+          const notice=preview.querySelector('#quoteShareMessage');notice.textContent='';
+          try{
+            const file=makeFile();
+            if(navigator.share && navigator.canShare?.({files:[file]})){
+              await navigator.share({files:[file],title:`Orçamento F8 #${current.numero}`,text:`Orçamento F8 #${current.numero} para ${current.cliente}`});
+            }else{
+              quotePdf(current).save(filename);
+              notice.textContent='Este navegador não oferece compartilhamento de PDF. O arquivo foi salvo para você enviar ou imprimir.';
+            }
+          }catch(error){if(error.name!=='AbortError')notice.textContent='Não foi possível compartilhar o PDF. Tente novamente.'}
         };
       };
     }
