@@ -23,6 +23,7 @@ export async function quotesPage({db,el,profile,back}){
     const fresh=!q;
     const next=String(Math.max(0,...rows.map(r=>Number(r.numero)||0))+1).padStart(4,'0');
     q=q||{numero:next,cliente:'',documento:'',telefone:'',email:'',data:new Date().toLocaleDateString('en-CA'),validade:'',projeto:'',status:'Rascunho',itens:[{descricao:'',quantidade:1,valor:0}],desconto:0,acrescimo:0,pagamento:'',observacoes:''};
+    const savedPay=String(q.pagamento||''),payType=/^Crédito/i.test(savedPay)?'Crédito':(/^Débito/i.test(savedPay)?'Débito':(/^Pix/i.test(savedPay)?'Pix':'')),savedInstallment=(savedPay.match(/(\d+)x/i)||[])[1]||'1';
     el.innerHTML=`<div class="welcome"><div><h1>${fresh?'Novo orçamento':'Orçamento #'+esc(q.numero)}</h1><p class="muted">F8 Soluções em Tecnologia</p></div><button class="ghost" id="backQuotes">Voltar</button></div>
       <form id="quoteForm" class="quoteForm">
       <div class="form"><label>Número<input name="numero" required maxlength="50" value="${esc(q.numero)}"></label>
@@ -37,11 +38,13 @@ export async function quotesPage({db,el,profile,back}){
       <section class="quoteItems"><h2>Produtos e serviços</h2><div id="quoteItems"></div><button type="button" id="addQuoteItem" class="ghost">+ Adicionar item</button></section>
       <div class="form"><label>Desconto (R$)<input name="desconto" type="number" min="0" step="0.01" value="${esc(q.desconto)}"></label>
       <label>Acréscimo (R$)<input name="acrescimo" type="number" min="0" step="0.01" value="${esc(q.acrescimo)}"></label>
-      <label class="wide">Condições de pagamento<textarea name="pagamento" maxlength="3000">${esc(q.pagamento)}</textarea></label>
+      <label>Condição de pagamento<select id="paymentType" required><option value="">Selecione</option>${['Pix','Débito','Crédito'].map(p=>`<option value="${p}" ${payType===p?'selected':''}>${p}</option>`).join('')}</select></label><label id="installmentField" style="${payType==='Crédito'?'':'display:none'}">Parcelamento<select id="installments">${Array.from({length:10},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(n)===savedInstallment?'selected':''}>${n}x</option>`).join('')}</select></label><input type="hidden" name="pagamento" id="paymentValue" value="${esc(savedPay)}">
       <label class="wide">Observações<textarea name="observacoes" maxlength="5000">${esc(q.observacoes)}</textarea></label></div>
       <div class="quoteSummary"><span>Total</span><strong id="quoteTotal">R$ 0,00</strong></div>
       <div class="actions quoteActions">${fresh?'':`<button type="button" id="deleteQuote" class="danger">Excluir</button><button type="button" id="printQuote" class="ghost">Imprimir / PDF</button>`}<button type="button" class="ghost" id="cancelQuote">Cancelar</button><button id="saveQuote">Salvar orçamento</button></div><p id="quoteMessage" role="alert"></p></form>`;
-    const f=el.querySelector('#quoteForm'),items=el.querySelector('#quoteItems'),message=el.querySelector('#quoteMessage');
+    const f=el.querySelector('#quoteForm'),items=el.querySelector('#quoteItems'),message=el.querySelector('#quoteMessage'),paymentType=el.querySelector('#paymentType'),installmentField=el.querySelector('#installmentField'),installments=el.querySelector('#installments'),paymentValue=el.querySelector('#paymentValue');
+    function syncPayment(){installmentField.style.display=paymentType.value==='Crédito'?'grid':'none';paymentValue.value=paymentType.value==='Crédito'?`Crédito - ${installments.value}x`:paymentType.value}
+    paymentType.onchange=syncPayment;installments.onchange=syncPayment;syncPayment();
     function addItem(i={descricao:'',quantidade:1,valor:0}){
       const line=document.createElement('div');line.className='quoteItem';
       line.innerHTML=`<input class="itemDesc" aria-label="Descrição" placeholder="Descrição do serviço ou produto" required maxlength="1000" value="${esc(i.descricao)}"><input class="itemQty" aria-label="Quantidade" type="number" min="0.01" step="0.01" required value="${esc(i.quantidade)}"><input class="itemPrice" aria-label="Valor unitário" type="number" min="0" step="0.01" required value="${esc(i.valor)}"><button type="button" class="ghost" aria-label="Remover item">×</button>`;
