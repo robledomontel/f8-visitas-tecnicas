@@ -1,3 +1,5 @@
+import { quotePdf } from './quote-pdf.js';
+
 const ROBLEDO_ID='922c325a-19c7-45fc-958a-8c7e561a9a73';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -22,7 +24,7 @@ export async function quotesPage({db,el,profile,back}){
   function form(q){
     const fresh=!q;
     const next=String(Math.max(0,...rows.map(r=>Number(r.numero)||0))+1).padStart(4,'0');
-    q=q||{numero:next,cliente:'',documento:'',telefone:'',email:'',data:new Date().toLocaleDateString('en-CA'),validade:'',projeto:'',status:'Rascunho',itens:[{descricao:'',quantidade:1,valor:0}],desconto:0,acrescimo:0,pagamento:'',observacoes:''};
+    q=q||{numero:next,cliente:'',documento:'',telefone:'',email:'',data:new Date().toLocaleDateString('en-CA'),validade:'',projeto:'',status:'Rascunho',itens:[{descricao:'',quantidade:'',valor:''}],desconto:0,acrescimo:0,pagamento:'',observacoes:''};
     const savedPay=String(q.pagamento||''),payType=/^Crédito/i.test(savedPay)?'Crédito':(/^Débito/i.test(savedPay)?'Débito':(/^Pix/i.test(savedPay)?'Pix':'')),savedInstallment=(savedPay.match(/(\d+)x/i)||[])[1]||'1';
     el.innerHTML=`<div class="welcome"><div><h1>${fresh?'Novo orçamento':'Orçamento #'+esc(q.numero)}</h1><p class="muted">F8 Soluções em Tecnologia</p></div><button class="ghost" id="backQuotes">Voltar</button></div>
       <form id="quoteForm" class="quoteForm">
@@ -45,7 +47,7 @@ export async function quotesPage({db,el,profile,back}){
     const f=el.querySelector('#quoteForm'),items=el.querySelector('#quoteItems'),message=el.querySelector('#quoteMessage'),paymentType=el.querySelector('#paymentType'),installmentField=el.querySelector('#installmentField'),installments=el.querySelector('#installments'),paymentValue=el.querySelector('#paymentValue');
     function syncPayment(){installmentField.style.display=paymentType.value==='Crédito'?'grid':'none';paymentValue.value=paymentType.value==='Crédito'?`Crédito - ${installments.value}x`:paymentType.value}
     paymentType.onchange=syncPayment;installments.onchange=syncPayment;syncPayment();
-    function addItem(i={descricao:'',quantidade:1,valor:0}){
+    function addItem(i={descricao:'',quantidade:'',valor:''}){
       const line=document.createElement('div');line.className='quoteItem';
       line.innerHTML=`<input class="itemDesc" aria-label="Descrição" placeholder="Descrição do serviço ou produto" required maxlength="1000" value="${esc(i.descricao)}"><input class="itemQty" aria-label="Quantidade" type="number" min="0.01" step="0.01" required value="${esc(i.quantidade)}"><input class="itemPrice" aria-label="Valor unitário" type="number" min="0" step="0.01" required value="${esc(i.valor)}"><button type="button" class="ghost" aria-label="Remover item">×</button>`;
       line.querySelector('button').onclick=()=>{line.remove();calculate()};items.append(line);calculate();
@@ -75,11 +77,38 @@ export async function quotesPage({db,el,profile,back}){
       el.querySelector('#printQuote').onclick=()=>{
         const current={...q,...Object.fromEntries(new FormData(f).entries()),itens:getItems()};
         const preview=document.createElement('section');preview.id='reportPreview';
-        preview.innerHTML=`<div class="reportActions"><button type="button" id="closeQuotePrint">Voltar</button><button type="button" id="printQuoteNow">Imprimir / Salvar PDF</button></div>
+        preview.innerHTML=`<div class="reportActions"><button type="button" id="closeQuotePrint">Voltar</button><button type="button" id="printQuoteNow">Imprimir</button><button type="button" id="saveQuotePdf">Salvar PDF</button><button type="button" id="shareQuotePdf" hidden>Compartilhar PDF</button><button type="button" id="emailQuotePdf">Enviar por e-mail</button><button type="button" id="whatsQuotePdf">Enviar por WhatsApp</button></div><p id="quoteShareMessage" class="shareMessage" role="status"></p>
         <header><img src="/f8-logo.svg" alt="F8 Soluções em Tecnologia"></header><h1>Orçamento #${esc(current.numero)}</h1><p><b>Cliente:</b> ${esc(current.cliente)}<br><b>Projeto:</b> ${esc(current.projeto)}<br><b>Data:</b> ${date(current.data)} · <b>Validade:</b> ${date(current.validade)}<br><b>Contato:</b> ${esc(current.telefone)} ${esc(current.email)}</p>
         <table class="quotePrintTable"><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unitário</th><th>Total</th></tr></thead><tbody>${current.itens.map(i=>`<tr><td>${esc(i.descricao)}</td><td>${esc(i.quantidade)}</td><td>${money(i.valor)}</td><td>${money(numeric(i.quantidade)*numeric(i.valor))}</td></tr>`).join('')}</tbody></table>
         <p><b>Desconto:</b> ${money(current.desconto)} · <b>Acréscimo:</b> ${money(current.acrescimo)}</p><h2>Total: ${money(total(current))}</h2><p><b>Pagamento:</b> ${esc(current.pagamento)}</p><p><b>Observações:</b> ${esc(current.observacoes)}</p><p>F8 Soluções em Tecnologia · WhatsApp (98) 99223-8387</p>`;
         document.body.append(preview);preview.querySelector('#closeQuotePrint').onclick=()=>preview.remove();preview.querySelector('#printQuoteNow').onclick=()=>window.print();
+        const filename=`Orcamento-F8-${String(current.numero||'sem-numero').replace(/[^a-zA-Z0-9_-]/g,'-')}.pdf`;
+        const makeFile=()=>new File([quotePdf(current).output('blob')],filename,{type:'application/pdf'});
+        const download=()=>quotePdf(current).save(filename);
+        preview.querySelector('#saveQuotePdf').onclick=download;
+        const shareButton=preview.querySelector('#shareQuotePdf');
+        if(navigator.share && navigator.canShare){
+          try{if(navigator.canShare({files:[makeFile()]}))shareButton.hidden=false}catch{}
+        }
+        shareButton.onclick=async()=>{
+          try{await navigator.share({files:[makeFile()],title:`Orçamento F8 #${current.numero}`,text:`Orçamento F8 #${current.numero} para ${current.cliente}`})}
+          catch(error){if(error.name!=='AbortError')preview.querySelector('#quoteShareMessage').textContent='Não foi possível compartilhar. Salve o PDF e anexe-o manualmente.'}
+        };
+        const message=`Segue o orçamento F8 #${current.numero} para ${current.cliente}. Anexe o arquivo ${filename}.`;
+        preview.querySelector('#emailQuotePdf').onclick=()=>{
+          download();
+          preview.querySelector('#quoteShareMessage').textContent=`Anexe o PDF ${filename} ao e-mail que será aberto.`;
+          window.location.href=`mailto:${encodeURIComponent(current.email||'')}?subject=${encodeURIComponent(`Orçamento F8 #${current.numero}`)}&body=${encodeURIComponent(message)}`;
+        };
+        preview.querySelector('#whatsQuotePdf').onclick=()=>{
+          const raw=String(current.telefone||'').replace(/\D/g,'');
+          const phone=/^\d{10,11}$/.test(raw)?`55${raw}`:/^55\d{10,11}$/.test(raw)?raw:'';
+          const url=`https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+          const opened=window.open(url,'_blank');
+          if(!opened){preview.querySelector('#quoteShareMessage').textContent='Permita a abertura do WhatsApp neste navegador e tente novamente.';return}
+          download();
+          preview.querySelector('#quoteShareMessage').textContent=`Anexe o PDF ${filename} à conversa do WhatsApp que foi aberta.`;
+        };
       };
     }
   }

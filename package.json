@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.1",
+    "jspdf": "^3.0.4",
     "vite": "7.3.6"
   },
   "devDependencies": {
