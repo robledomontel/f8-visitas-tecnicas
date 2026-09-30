@@ -21,16 +21,23 @@ export async function quotesPage({db,el,profile,back}){
     el.querySelector('#quoteSearch').oninput=e=>{const value=e.target.value;list(value);const input=el.querySelector('#quoteSearch');input.focus();input.setSelectionRange(value.length,value.length)};
     el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>form(rows.find(q=>q.id===b.dataset.edit)));
   }
-  function form(q){
+  async function form(q){
+    const clients=[];
+    for(let start=0;;start+=500){
+      const result=await db.from('clientes').select('id,nome,documento,telefone,email').order('nome').order('id').range(start,start+499);
+      if(result.error){el.innerHTML='<p role="alert">Não foi possível carregar os clientes. Tente novamente.</p><button id="retryClients">Tentar novamente</button>';el.querySelector('#retryClients').onclick=()=>form(q);return}
+      clients.push(...result.data);if(result.data.length<500)break;
+    }
     const fresh=!q;
     const next=String(Math.max(0,...rows.map(r=>Number(r.numero)||0))+1).padStart(4,'0');
     q=q||{numero:next,cliente:'',documento:'',telefone:'',email:'',data:new Date().toLocaleDateString('en-CA'),validade:'',projeto:'',status:'Rascunho',itens:[{descricao:'',quantidade:'',valor:''}],desconto:0,acrescimo:0,pagamento:'',observacoes:''};
     const savedPay=String(q.pagamento||''),payType=/^Crédito/i.test(savedPay)?'Crédito':(/^Débito/i.test(savedPay)?'Débito':(/^Pix/i.test(savedPay)?'Pix':'')),savedInstallment=(savedPay.match(/(\d+)x/i)||[])[1]||'1';
     el.innerHTML=`<div class="welcome"><div><h1>${fresh?'Novo orçamento':'Orçamento #'+esc(q.numero)}</h1><p class="muted">F8 Soluções em Tecnologia</p></div><button class="ghost" id="backQuotes">Voltar</button></div>
       <form id="quoteForm" class="quoteForm">
+      <section class="quoteClientPicker"><label>Buscar cliente cadastrado<input id="clientSearch" type="search" autocomplete="off" placeholder="Digite o nome ou CPF/CNPJ"></label><div id="clientMatches" class="clientMatches"></div><p class="muted">Selecione um cliente para preencher os dados. Se for novo, preencha abaixo: ele será cadastrado ao salvar o orçamento.</p></section>
       <div class="form"><label>Número<input name="numero" required maxlength="50" value="${esc(q.numero)}"></label>
       <label>Status<select name="status">${['Rascunho','Enviado','Aprovado','Recusado'].map(s=>`<option ${q.status===s?'selected':''}>${s}</option>`).join('')}</select></label>
-      <label>Cliente / empresa<input name="cliente" required maxlength="250" value="${esc(q.cliente)}"></label>
+      <label>Cliente / empresa<input name="cliente" required maxlength="200" value="${esc(q.cliente)}"></label>
       <label>CPF / CNPJ<input name="documento" maxlength="100" value="${esc(q.documento)}"></label>
       <label>Telefone / WhatsApp<input name="telefone" maxlength="100" value="${esc(q.telefone)}"></label>
       <label>E-mail<input name="email" type="email" maxlength="250" value="${esc(q.email)}"></label>
@@ -45,6 +52,23 @@ export async function quotesPage({db,el,profile,back}){
       <div class="quoteSummary"><span>Total</span><strong id="quoteTotal">R$ 0,00</strong></div>
       <div class="actions quoteActions">${fresh?'':`<button type="button" id="deleteQuote" class="danger">Excluir</button><button type="button" id="printQuote" class="ghost">Imprimir / PDF</button>`}<button type="button" class="ghost" id="cancelQuote">Cancelar</button><button id="saveQuote">Salvar orçamento</button></div><p id="quoteMessage" role="alert"></p></form>`;
     const f=el.querySelector('#quoteForm'),items=el.querySelector('#quoteItems'),message=el.querySelector('#quoteMessage'),paymentType=el.querySelector('#paymentType'),installmentField=el.querySelector('#installmentField'),installments=el.querySelector('#installments'),paymentValue=el.querySelector('#paymentValue');
+    let selectedClientId=q.cliente_id||null;
+    const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase('pt-BR');
+    const digits=v=>String(v||'').replace(/\D/g,'');
+    const search=el.querySelector('#clientSearch'),matches=el.querySelector('#clientMatches');
+    function showMatches(){
+      const term=normalize(search.value),doc=digits(search.value);
+      const found=clients.filter(c=>!term||normalize(c.nome).includes(term)||(doc&&digits(c.documento).includes(doc)));
+      matches.innerHTML=found.slice(0,20).map(c=>`<button type="button" class="ghost" data-client="${esc(c.id)}">${esc(c.nome)}${c.documento?` · ${esc(c.documento)}`:''}</button>`).join('')||'<p>Nenhum cliente encontrado. Preencha os dados abaixo para cadastrar.</p>';
+      if(found.length>20)matches.insertAdjacentHTML('beforeend','<p class="muted">Digite mais detalhes para filtrar os clientes.</p>');
+      matches.querySelectorAll('[data-client]').forEach(button=>button.onclick=()=>{
+        const client=clients.find(c=>c.id===button.dataset.client);selectedClientId=client.id;
+        for(const [field,key] of [['cliente','nome'],['documento','documento'],['telefone','telefone'],['email','email']])f.elements[field].value=client[key]||'';
+        search.value=client.nome;matches.innerHTML='<p role="status">Cliente selecionado. Dados preenchidos.</p>';
+      });
+    }
+    search.oninput=showMatches;showMatches();
+    for(const field of ['cliente','documento'])f.elements[field].addEventListener('input',()=>{selectedClientId=null});
     function syncPayment(){installmentField.style.display=paymentType.value==='Crédito'?'grid':'none';paymentValue.value=paymentType.value==='Crédito'?`Crédito - ${installments.value}x`:paymentType.value}
     paymentType.onchange=syncPayment;installments.onchange=syncPayment;syncPayment();
     function addItem(i={descricao:'',quantidade:'',valor:''}){
@@ -60,12 +84,14 @@ export async function quotesPage({db,el,profile,back}){
     f.onsubmit=async e=>{
       e.preventDefault();if(!items.children.length){message.textContent='Adicione pelo menos um item.';return}
       const fields=Object.fromEntries(new FormData(f).entries());
-      const payload={...fields,itens:getItems(),desconto:numeric(fields.desconto),acrescimo:numeric(fields.acrescimo),validade:fields.validade||null};
+      const payload={...fields,cliente:fields.cliente.trim(),documento:fields.documento.trim(),cliente_id:selectedClientId,itens:getItems(),desconto:numeric(fields.desconto),acrescimo:numeric(fields.acrescimo),validade:fields.validade||null};
       const button=el.querySelector('#saveQuote');button.disabled=true;message.textContent='';
+      try{
       const result=fresh?await db.from('orcamentos_f8').insert(payload).select().single():await db.from('orcamentos_f8').update({...payload,atualizado_em:new Date().toISOString()}).eq('id',q.id).select().single();
       button.disabled=false;
-      if(result.error||!result.data){message.textContent='Não foi possível salvar. Confira os dados e tente novamente.';return}
+      if(result.error||!result.data){message.textContent=result.error?.message||'Não foi possível salvar. Confira os dados e tente novamente.';return}
       rows=fresh?[result.data,...rows]:rows.map(x=>x.id===q.id?result.data:x);list();
+      }catch(error){message.textContent='Não foi possível salvar. Tente novamente.'}finally{button.disabled=false}
     };
     if(!fresh){
       el.querySelector('#deleteQuote').onclick=async()=>{

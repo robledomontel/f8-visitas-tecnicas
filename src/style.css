@@ -111,3 +111,5 @@ nav i{font-style:normal;display:inline-block;min-width:24px;text-align:center;ma
 #reportPreview .shareMessage{color:#145b91;margin:0 0 12px}
 @media(max-width:600px){#reportPreview .reportActions{justify-content:flex-start;gap:8px}#reportPreview .reportActions button{padding:9px 11px;font-size:14px}}
 @media print{#reportPreview .shareMessage{display:none!important}}
+
+.quoteClientPicker{padding:18px;background:#fff;border:1px solid #dce7ef;border-radius:16px}.clientMatches{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.clientMatches button{text-align:left;overflow-wrap:anywhere}.quoteClientPicker p{margin-bottom:0}
