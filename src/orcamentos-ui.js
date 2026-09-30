@@ -38,7 +38,7 @@ export async function quotesPage({db,el,profile,back}){
       <section class="quoteClientPicker"><label>Buscar cliente cadastrado<input id="clientSearch" type="search" autocomplete="off" placeholder="Digite o nome ou CPF/CNPJ"></label><div id="clientMatches" class="clientMatches"></div><p class="muted">Selecione um cliente para preencher os dados. Se for novo, preencha abaixo: ele será cadastrado ao salvar o orçamento.</p></section>
       <div class="form"><label>Número<input name="numero" required maxlength="50" value="${esc(q.numero)}"></label>
       <label>Status<select name="status">${['Rascunho','Enviado','Aprovado','Recusado'].map(s=>`<option ${q.status===s?'selected':''}>${s}</option>`).join('')}</select></label>
-      <label>Cliente / empresa<input name="cliente" required maxlength="200" autocapitalize="sentences" value="${esc(capitalizeClient(q.cliente))}"></label>
+      <label>Cliente / Empresa<input name="cliente" required maxlength="200" autocapitalize="sentences" value="${esc(capitalizeClient(q.cliente))}"></label>
       <label>CPF / CNPJ<input name="documento" maxlength="100" value="${esc(q.documento)}"></label>
       <label>Telefone / WhatsApp<input name="telefone" maxlength="100" value="${esc(q.telefone)}"></label>
       <label>E-mail<input name="email" type="email" maxlength="250" value="${esc(q.email)}"></label>
