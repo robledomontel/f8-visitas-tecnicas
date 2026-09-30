@@ -5,6 +5,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const numeric=v=>Math.max(0,Number(v)||0);
 const total=q=>Math.max(0,(q.itens||[]).reduce((a,i)=>a+numeric(i.quantidade)*numeric(i.valor),0)-numeric(q.desconto)+numeric(q.acrescimo));
+const capitalizeClient=v=>String(v??'').replace(/^(\s*)(\S)/u,(_,space,first)=>space+first.toLocaleUpperCase('pt-BR'));
 const date=v=>v?String(v).slice(0,10).split('-').reverse().join('/'):'—';
 
 export async function quotesPage({db,el,profile,back}){
@@ -37,7 +38,7 @@ export async function quotesPage({db,el,profile,back}){
       <section class="quoteClientPicker"><label>Buscar cliente cadastrado<input id="clientSearch" type="search" autocomplete="off" placeholder="Digite o nome ou CPF/CNPJ"></label><div id="clientMatches" class="clientMatches"></div><p class="muted">Selecione um cliente para preencher os dados. Se for novo, preencha abaixo: ele será cadastrado ao salvar o orçamento.</p></section>
       <div class="form"><label>Número<input name="numero" required maxlength="50" value="${esc(q.numero)}"></label>
       <label>Status<select name="status">${['Rascunho','Enviado','Aprovado','Recusado'].map(s=>`<option ${q.status===s?'selected':''}>${s}</option>`).join('')}</select></label>
-      <label>Cliente / empresa<input name="cliente" required maxlength="200" value="${esc(q.cliente)}"></label>
+      <label>Cliente / empresa<input name="cliente" required maxlength="200" autocapitalize="sentences" value="${esc(capitalizeClient(q.cliente))}"></label>
       <label>CPF / CNPJ<input name="documento" maxlength="100" value="${esc(q.documento)}"></label>
       <label>Telefone / WhatsApp<input name="telefone" maxlength="100" value="${esc(q.telefone)}"></label>
       <label>E-mail<input name="email" type="email" maxlength="250" value="${esc(q.email)}"></label>
@@ -59,16 +60,20 @@ export async function quotesPage({db,el,profile,back}){
     function showMatches(){
       const term=normalize(search.value),doc=digits(search.value);
       const found=clients.filter(c=>!term||normalize(c.nome).includes(term)||(doc&&digits(c.documento).includes(doc)));
-      matches.innerHTML=found.slice(0,20).map(c=>`<button type="button" class="ghost" data-client="${esc(c.id)}">${esc(c.nome)}${c.documento?` · ${esc(c.documento)}`:''}</button>`).join('')||'<p>Nenhum cliente encontrado. Preencha os dados abaixo para cadastrar.</p>';
+      matches.innerHTML=found.slice(0,20).map(c=>`<button type="button" class="ghost" data-client="${esc(c.id)}">${esc(capitalizeClient(c.nome))}${c.documento?` · ${esc(c.documento)}`:''}</button>`).join('')||'<p>Nenhum cliente encontrado. Preencha os dados abaixo para cadastrar.</p>';
       if(found.length>20)matches.insertAdjacentHTML('beforeend','<p class="muted">Digite mais detalhes para filtrar os clientes.</p>');
       matches.querySelectorAll('[data-client]').forEach(button=>button.onclick=()=>{
         const client=clients.find(c=>c.id===button.dataset.client);selectedClientId=client.id;
-        for(const [field,key] of [['cliente','nome'],['documento','documento'],['telefone','telefone'],['email','email']])f.elements[field].value=client[key]||'';
+        for(const [field,key] of [['cliente','nome'],['documento','documento'],['telefone','telefone'],['email','email']])f.elements[field].value=field==='cliente'?capitalizeClient(client[key]):client[key]||'';
         search.value=client.nome;matches.innerHTML='<p role="status">Cliente selecionado. Dados preenchidos.</p>';
       });
     }
     search.oninput=showMatches;showMatches();
     for(const field of ['cliente','documento'])f.elements[field].addEventListener('input',()=>{selectedClientId=null});
+    f.elements.cliente.addEventListener('input',event=>{
+      const input=event.target,start=input.selectionStart,end=input.selectionEnd,value=capitalizeClient(input.value);
+      if(value!==input.value){input.value=value;input.setSelectionRange(start,end)}
+    });
     function syncPayment(){installmentField.style.display=paymentType.value==='Crédito'?'grid':'none';paymentValue.value=paymentType.value==='Crédito'?`Crédito - ${installments.value}x`:paymentType.value}
     paymentType.onchange=syncPayment;installments.onchange=syncPayment;syncPayment();
     function addItem(i={descricao:'',quantidade:'',valor:''}){
@@ -84,7 +89,7 @@ export async function quotesPage({db,el,profile,back}){
     f.onsubmit=async e=>{
       e.preventDefault();if(!items.children.length){message.textContent='Adicione pelo menos um item.';return}
       const fields=Object.fromEntries(new FormData(f).entries());
-      const payload={...fields,cliente:fields.cliente.trim(),documento:fields.documento.trim(),cliente_id:selectedClientId,itens:getItems(),desconto:numeric(fields.desconto),acrescimo:numeric(fields.acrescimo),validade:fields.validade||null};
+      const payload={...fields,cliente:capitalizeClient(fields.cliente.trim()),documento:fields.documento.trim(),cliente_id:selectedClientId,itens:getItems(),desconto:numeric(fields.desconto),acrescimo:numeric(fields.acrescimo),validade:fields.validade||null};
       const button=el.querySelector('#saveQuote');button.disabled=true;message.textContent='';
       try{
       const result=fresh?await db.from('orcamentos_f8').insert(payload).select().single():await db.from('orcamentos_f8').update({...payload,atualizado_em:new Date().toISOString()}).eq('id',q.id).select().single();

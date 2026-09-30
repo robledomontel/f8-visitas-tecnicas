@@ -27,7 +27,9 @@ test('busca por nome e documento preenche contatos e salva vínculo; novo client
   f.querySelector('.itemDesc').value='Serviço';f.querySelector('.itemQty').value='1';f.querySelector('.itemPrice').value='100';
   await f.onsubmit({preventDefault(){}});assert.equal(saved.cliente_id,client.id);
   page.querySelector('#newQuote').click();await new Promise(r=>setTimeout(r,0));
-  f=page.querySelector('#quoteForm');f.elements.cliente.value='Novo cliente';
+  f=page.querySelector('#quoteForm');f.elements.cliente.value='novo cliente';
+  f.elements.cliente.dispatchEvent(new dom.window.Event('input'));assert.equal(f.elements.cliente.value,'Novo cliente');
+  f.elements.cliente.value='novo cliente';
   f.querySelector('.itemDesc').value='Serviço';f.querySelector('.itemQty').value='1';f.querySelector('.itemPrice').value='50';
   await f.onsubmit({preventDefault(){}});assert.equal(saved.cliente_id,null);assert.equal(saved.cliente,'Novo cliente');
   assert.equal('clientSearch' in saved,false);
