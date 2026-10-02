@@ -15,3 +15,19 @@ test('acesso não autorizado não consulta dados; formulário salva e edita rece
  await financePage({db,el,profile:{id:ROBLEDO_ID}});el.querySelector('#newIncome').click();let form=el.querySelector('form');form.elements.descricao.value='Instalação CFTV';form.elements.valor.value='150.25';await form.onsubmit({preventDefault(){}});assert.equal(rows[0].status,'pendente');assert.equal(rows[0].data_pagamento,null);
  el.querySelector('[data-edit-finance]').click();form=el.querySelector('form');form.elements.status.value='liquidado';form.elements.status.dispatchEvent(new dom.window.Event('change'));assert.equal(form.elements.data_pagamento.required,true);await form.onsubmit({preventDefault(){}});assert.equal(rows.length,1);assert.equal(rows[0].status,'liquidado');assert.ok(rows[0].data_pagamento);assert.equal(rows[0].valor,150.25);
 });
+test('indicadores filtram tipo e situação do mês corrente e limpam filtros anteriores',async()=>{
+ const {today}=await import('../src/financeiro-model.js');
+ const month=today().slice(0,7),current=month+'-01',other=month==='2025-01'?'2024-12-01':'2025-01-01';
+ const rows=['entrada','saida'].flatMap(tipo=>['liquidado','pendente','cancelado'].flatMap(status=>[current,other].map((day,i)=>({id:`${tipo}-${status}-${i}`,tipo,status,descricao:`${tipo}-${status}-${i}`,valor:10,vencimento:status==='liquidado'?other:day,data_pagamento:status==='liquidado'?day:null}))));
+ const dom=new JSDOM('<main></main>'),el=dom.window.document.querySelector('main');
+ const db={from(){return {select(){return this},order(){return this},range:async()=>({data:rows})}}};
+ await financePage({db,el,profile:{id:ROBLEDO_ID}});
+ for(const [index,tipo,status] of [[0,'entrada','liquidado'],[1,'saida','liquidado'],[2,'entrada','pendente'],[3,'saida','pendente']]){
+  const change=(id,value,event='change')=>{const input=el.querySelector(id);input.value=value;input.dispatchEvent(new dom.window.Event(event))};
+  change('#financeMonth',other.slice(0,7));change('#financeType',tipo==='entrada'?'saida':'entrada');change('#financeStatus','cancelado');change('#financeSearch','sem correspondência','input');
+  const card=el.querySelectorAll('[data-finance-type]')[index];
+  if(index===3)card.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:' ',bubbles:true}));else card.click();
+  assert.equal(el.querySelector('#financeMonth').value,month);assert.equal(el.querySelector('#financeSearch').value,'');assert.equal(el.querySelector('#financeType').value,tipo);assert.equal(el.querySelector('#financeStatus').value,status);
+  assert.deepEqual([...el.querySelectorAll('[data-edit-finance]')].map(b=>b.dataset.editFinance),[`${tipo}-${status}-0`]);
+ }
+});
