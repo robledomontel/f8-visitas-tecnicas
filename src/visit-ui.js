@@ -1,3 +1,4 @@
+import {applyVisitDashboardFilter} from './visit-dashboard.js';
 import {checked, visitPayload, visitService} from './visit-service.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -31,18 +32,20 @@ function setBusy(value) {
   busy = value;
   document.querySelectorAll('nav button, #out, #page button, #page input, #page select, #page textarea').forEach(control => { control.disabled = value; });
 }
-export async function manageVisits({db, el, profile, report, edit}) {
+export async function manageVisits({db, el, profile, report, edit, filter = null, clearFilter}) {
   const service = visitService(db);
   el.innerHTML = '<h1>Gerenciar visitas</h1><p role="status">Carregando visitas…</p>';
   try {
     // Fetch in pages so the Supabase default row limit never hides older visits.
     const visits = [];
     for (let start = 0; ; start += 500) {
-      const batch = checked(await db.from('visitas').select('*,clientes(nome)').order('numero', {ascending:false}).range(start, start + 499));
+      const query = applyVisitDashboardFilter(db.from('visitas').select('*,clientes(nome)'), filter);
+      const batch = checked(await query.order('numero', {ascending:false}).range(start, start + 499));
       visits.push(...batch); if (batch.length < 500) break;
     }
     if (!el.isConnected) return;
-    el.innerHTML = `<h1>Gerenciar visitas</h1><p class="muted">Edite o cadastro, gerencie fotos ou exclua uma visita.</p><label>Buscar visita<input id="visitSearch" type="search" placeholder="Número, cliente, data ou sistema"></label><div id="cleanupMessage" role="status"></div><p id="manageMessage" role="status"></p><div id="visitList"></div>`;
+    el.innerHTML = `<h1>${filter ? `Visitas — ${esc(filter.label)}` : 'Gerenciar visitas'}</h1>${filter ? `<div class="inline"><span>Filtro ativo: ${esc(filter.label)}</span><button type="button" class="ghost" id="clearVisitFilter">Ver todas as visitas</button></div>` : ''}<p class="muted">Edite o cadastro, gerencie fotos ou exclua uma visita.</p><label>Buscar visita<input id="visitSearch" type="search" placeholder="Número, cliente, data ou sistema"></label><div id="cleanupMessage" role="status"></div><p id="manageMessage" role="status"></p><div id="visitList"></div>`;
+    if(filter)el.querySelector('#clearVisitFilter').onclick=()=>clearFilter ? clearFilter() : manageVisits({db,el,profile,report,edit});
     const message = el.querySelector('#manageMessage');
     const render = () => {
       const term = el.querySelector('#visitSearch').value.toLocaleLowerCase('pt-BR');
