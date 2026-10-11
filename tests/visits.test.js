@@ -93,6 +93,8 @@ test('report opens an in-page preview and prints from the user action',async()=>
   const dom=new JSDOM('<div id="app">Dashboard</div>',{url:'https://example.test'});
   let printed=0;
   dom.window.print=()=>{printed++;};
+  const scrolls=[];dom.window.scrollTo=(x,y)=>scrolls.push([x,y]);
+  Object.defineProperty(dom.window,'scrollY',{value:420});
   const db={from:table=>({select(){return this;},eq(){return this;},single:async()=>({data:{numero:7,clientes:{nome:'Cliente <teste>'},diagnostico:'Diagnóstico revisado'}}),then(resolve){return Promise.resolve({data:[{arquivo_path:'7/photo.png',categoria:'antes'}]}).then(resolve);}}),storage:{from:()=>({createSignedUrl:async()=>({data:{signedUrl:'https://example.test/photo.png'}})})}};
   const esc=value=>String(value??'').replaceAll('<','&lt;').replaceAll('>','&gt;');
   const report=new Function('supabase','window','document','esc',`${reportCode};return abrirRelatorio;`)(db,dom.window,dom.window.document,esc);
@@ -100,6 +102,11 @@ test('report opens an in-page preview and prints from the user action',async()=>
   const preview=dom.window.document.querySelector('#reportPreview');
   assert.ok(preview);assert.match(preview.innerHTML,/Cliente &lt;teste&gt;/);assert.match(preview.innerHTML,/Diagnóstico revisado/);
   assert.match(preview.innerHTML,/https:\/\/example.test\/photo.png/);
-  preview.querySelector('#printReportButton').click();assert.equal(printed,1);
-  preview.querySelector('#closeReportButton').click();assert.equal(dom.window.document.querySelector('#reportPreview'),null);
+  assert.equal(preview.className,'visitReport');
+  const photo=preview.querySelector('.photos img');assert.equal(photo.getAttribute('loading'),'lazy');assert.equal(photo.getAttribute('decoding'),'async');assert.equal(photo.getAttribute('height'),'300');
+  assert.deepEqual(scrolls,[[0,0]]);
+  await report('7');assert.equal(dom.window.document.querySelectorAll('#reportPreview').length,1);
+  let decoded=0;dom.window.HTMLImageElement.prototype.decode=async()=>{decoded++;};
+  const button=preview.querySelector('#printReportButton');const printing=button.onclick({currentTarget:button});assert.equal(button.disabled,true);await printing;assert.equal(printed,1);assert.equal(decoded,2);assert.equal(photo.loading,'eager');assert.equal(button.disabled,false);
+  preview.querySelector('#closeReportButton').click();assert.equal(dom.window.document.querySelector('#reportPreview'),null);assert.deepEqual(scrolls.at(-1),[0,420]);
 });
