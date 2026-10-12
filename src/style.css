@@ -120,3 +120,40 @@ nav i{font-style:normal;display:inline-block;min-width:24px;text-align:center;ma
 .cards .visitIndicator{text-align:left;font:inherit;color:#172536;white-space:normal;cursor:pointer;transition:border-color .15s,box-shadow .15s}
 .cards .visitIndicator:hover{border-color:#0876c9;box-shadow:0 2px 10px #0876c91a}
 .cards .visitIndicator:focus-visible{outline:3px solid #0876c9;outline-offset:3px}
+
+/* Floating selection inspired by the reference, in F8's blue palette. */
+.animatedNav{--menu-accent:#69c9ff;gap:14px;background:linear-gradient(165deg,#112c42,#081d30);padding-top:28px}
+.animatedNav button{position:relative;display:flex;align-items:center;gap:12px;padding:12px 10px;border:1px solid transparent;border-radius:18px;font-weight:600;transition:background .3s,border-color .3s,color .3s;isolation:isolate}
+.animatedNav button::before{content:"";position:absolute;inset:7px;border-radius:18px;background:radial-gradient(ellipse at 25% 50%,#329ee530,transparent 75%);opacity:0;transition:opacity .35s;z-index:-1}
+.animatedNav i{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;min-width:38px;margin:0;border-radius:50%;color:#a7bdd0;background:transparent;transition:transform .45s cubic-bezier(.22,1,.36,1),background .35s,color .35s,box-shadow .35s}
+.animatedNav svg{width:21px;height:21px}
+.animatedNav button.active{color:#fff;background:#ffffff08;border-color:#ffffff18}
+.animatedNav button.active::before{opacity:1}
+.animatedNav button.active i{transform:translateY(-6px);background:var(--menu-accent);color:#08243a;box-shadow:0 0 0 5px #112c42,0 8px 24px #46b4ff55}
+.animatedNav button[data-page="nova"]{--menu-accent:#78e1c3}
+.animatedNav button[data-page="pendencias"]{--menu-accent:#ffd17b}
+.animatedNav button[data-page="orcamentos"]{--menu-accent:#b2adff}
+.animatedNav button[data-page="financeiro"]{--menu-accent:#78e1c3}
+@media(hover:hover){.animatedNav button:hover{background:#ffffff0d;color:#fff}.animatedNav button:hover i{transform:translateY(-4px)}.hubOptions button:hover{transform:translateY(-6px);border-color:#75b9e7;box-shadow:0 16px 32px #0876c920}}
+.hubOptions button{transition:transform .35s,box-shadow .35s,border-color .35s}
+@media(max-width:720px){
+ .animatedNav{inset:auto 10px max(10px,env(safe-area-inset-bottom));display:flex;flex-direction:row;align-items:flex-end;gap:4px;overflow-x:auto;overscroll-behavior-x:contain;padding:22px 8px 8px;border:1px solid #35536b;border-radius:24px;box-shadow:0 10px 30px #081d3040;scrollbar-width:none;max-width:calc(100% - 20px)}
+ .animatedNav::-webkit-scrollbar{display:none}
+ .animatedNav button{flex:0 0 78px;min-width:78px;min-height:74px;flex-direction:column;justify-content:flex-start;gap:6px;padding:4px 3px 6px;border-radius:16px;font-size:10px;line-height:1.25}
+ .animatedNav i{flex-basis:36px;width:36px;height:36px;min-width:36px}
+ .animatedNav button.active i{transform:translateY(-14px);box-shadow:0 0 0 6px #0e293e,0 8px 24px #46b4ff55}
+ .animatedNav button.active span{transform:translateY(-4px)}
+ .animatedNav span{transition:transform .4s;max-width:74px}
+ .animatedNav button::before{inset:10px 0 0;background:radial-gradient(ellipse at 50% 35%,#329ee530,transparent 75%)}
+ #page{padding-bottom:calc(140px + env(safe-area-inset-bottom))}
+}
+@media(prefers-reduced-motion:reduce){.animatedNav button,.animatedNav i,.animatedNav span,.animatedNav button::before,.hubOptions button{transition:none}}
+.hubMenu{display:flex;justify-content:center;gap:14px;margin:36px auto;padding:28px 16px 18px;border:1px solid #35536b;border-radius:26px;box-shadow:0 18px 45px #102e4325}
+.hubMenu button{display:flex;flex:1;flex-direction:column;align-items:center;text-align:center;gap:10px;min-height:150px;padding:12px 8px;border:0;background:transparent;box-shadow:none;color:#fff}
+.hubMenu strong{color:#e2f2ff;font-size:17px}
+.hubMenu span{color:#adc2d4;font-size:12px;line-height:1.5}
+.hubMenu i{background:#69c9ff;color:#08243a;transform:translateY(-10px);box-shadow:0 0 0 6px #112c42,0 8px 24px #46b4ff40}
+.hubMenu [data-area="orcamentos"] i{background:#b2adff}.hubMenu [data-area="financeiro"] i{background:#78e1c3}
+.hubMenu button:focus-visible i,.hubMenu button:active i{transform:translateY(-18px)}
+@media(hover:hover){.hubMenu button:hover{background:#ffffff08;box-shadow:none;border:0;transform:none}.hubMenu button:hover i{transform:translateY(-18px)}}
+@media(max-width:720px){.hubMenu{position:static;overflow:visible;max-width:100%;gap:4px;padding:26px 8px 14px}.hubMenu button{flex:1;min-width:0;min-height:120px;padding:6px 3px;gap:8px}.hubMenu strong{font-size:13px}.hubMenu span{max-width:none;font-size:10px}.hubMenu i{flex:0 0 36px}}
