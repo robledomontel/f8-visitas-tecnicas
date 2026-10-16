@@ -12,5 +12,5 @@ create function public.f8_restaurar_registro(p_snapshot uuid,p_tabela text,p_id 
 revoke all on function public.f8_proximo_orcamento(),public.f8_backup(boolean),public.f8_listar_backups(),public.f8_snapshot_conteudo(uuid),public.f8_restaurar_registro(uuid,text,uuid) from public,anon;
 grant execute on function public.f8_proximo_orcamento(),public.f8_backup(boolean),public.f8_listar_backups(),public.f8_snapshot_conteudo(uuid),public.f8_restaurar_registro(uuid,text,uuid) to authenticated;
 create extension if not exists pg_cron;
-select cron.schedule('f8-backup-diario','0 6 * * *','select private.f8_snapshot()');
+select cron.schedule('f8-backup-diario','0 6 * * 0','select private.f8_snapshot()');
 commit;
