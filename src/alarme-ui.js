@@ -36,5 +36,5 @@ export async function alarmePage({db,el,profile}){
   }
   el.querySelector('#newAlarme').onclick=()=>showForm();
   el.querySelector('#alarmeSearch').oninput=render;
-  await Promise.all([load(),(async()=>{try{clients=await allRows(()=>db.from('clientes').select('id,nome').order('id'));}catch{clients=[];}})()]);
+  await Promise.all([load(),(async()=>{try{clients=await allRows(()=>db.from('clientes').select('id,nome,excluido_em').order('id'));}catch{clients=[];}})()]);
 }

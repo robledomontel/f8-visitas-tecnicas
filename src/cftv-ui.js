@@ -36,5 +36,5 @@ export async function cftvPage({db,el,profile}){
   }
   el.querySelector('#newCftv').onclick=()=>showForm();
   el.querySelector('#cftvSearch').oninput=render;
-  await Promise.all([load(),(async()=>{try{clients=await allRows(()=>db.from('clientes').select('id,nome').order('id'));}catch{clients=[];}})()]);
+  await Promise.all([load(),(async()=>{try{clients=await allRows(()=>db.from('clientes').select('id,nome,excluido_em').order('id'));}catch{clients=[];}})()]);
 }

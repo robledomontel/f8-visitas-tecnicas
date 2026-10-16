@@ -93,7 +93,7 @@ export async function visitForm({db, el, id, back}) {
   let visit, photos, clients;
   try {
     [clients, visit, photos] = await Promise.all([
-      allRows(()=>db.from('clientes').select('id,nome').order('nome').order('id')),
+      allRows(()=>db.from('clientes').select('id,nome,excluido_em').order('nome').order('id')),
       id ? db.from('visitas').select('*').eq('id',id).single().then(checked) : null,
       id ? allRows(()=>db.from('fotos_visita').select('*').eq('visita_id',id).order('criado_em').order('id')) : [],
     ]);

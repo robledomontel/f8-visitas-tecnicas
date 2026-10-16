@@ -27,9 +27,9 @@ export async function quotesPage({db,el,profile,back,onVisit,onFinance}){
   async function form(q){
     const clients=[];
     for(let start=0;;start+=500){
-      const result=await db.from('clientes').select('id,nome,documento,telefone,email').order('nome').order('id').range(start,start+499);
+      const result=await db.from('clientes').select('id,nome,documento,telefone,email,excluido_em').order('nome').order('id').range(start,start+499);
       if(result.error){el.innerHTML='<p role="alert">Não foi possível carregar os clientes. Tente novamente.</p><button id="retryClients">Tentar novamente</button>';el.querySelector('#retryClients').onclick=()=>form(q);return}
-      clients.push(...result.data);if(result.data.length<500)break;
+      clients.push(...result.data.filter(c=>!c.excluido_em));if(result.data.length<500)break;
     }
     const fresh=!q;
     let next=String(Math.max(0,...rows.map(r=>Number(r.numero)||0))+1).padStart(6,'0');if(fresh&&db.rpc){try{next=result(await db.rpc('f8_proximo_orcamento'));}catch(error){el.innerHTML='<p role="alert">Não foi possível reservar o número. Reabra o formulário.</p>';return;}}
