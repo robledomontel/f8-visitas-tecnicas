@@ -1,0 +1,8 @@
+create or replace function public.f8_faturar_orcamento(p_id uuid,p_vencimento date,p_parcelas integer) returns integer language plpgsql security invoker set search_path='' as $$declare q public.orcamentos_f8%rowtype;total numeric;centavos bigint;v uuid;g uuid:=gen_random_uuid();i integer;begin
+ select * into strict q from public.orcamentos_f8 where id=p_id and excluido_em is null for update;
+ if q.status<>'Aprovado' or p_parcelas not between 1 and 120 or p_vencimento is null then raise exception 'Confira a aprovação e as parcelas';end if;
+ if exists(select 1 from public.financeiro_f8 where orcamento_id=p_id and tipo='entrada' and excluido_em is null) then raise exception 'Este orçamento já possui previsão financeira. Consulte o financeiro para evitar duplicidade.';end if;
+ select greatest(0,coalesce(sum((item->>'quantidade')::numeric*(item->>'valor')::numeric),0)-q.desconto+q.acrescimo) into total from jsonb_array_elements(q.itens)item;
+ centavos:=round(total*100);if centavos<p_parcelas then raise exception 'Total insuficiente';end if;
+ select id into v from public.visitas where orcamento_id=p_id and excluido_em is null limit 1;
+ for i in 1..p_parcelas loop insert into public.financeiro_f8(tipo,descricao,valor,categoria,subcategoria,pessoa,cliente_id,orcamento_id,visita_id,vencimento,status,forma_pagamento,grupo_id,parcela) values('entrada','Orçamento #'||q.numero||' — '||i||'/'||p_parcelas,((centavos/p_parcelas)+case when i<=centavos%p_parcelas then 1 else 0 end)/100.0,'Serviços','Outros serviços',q.cliente,q.cliente_id,q.id,v,(p_vencimento+(i-1)*interval '1 month')::date,'pendente',q.pagamento,g,i);end loop;return p_parcelas;end$$;

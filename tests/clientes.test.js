@@ -16,7 +16,7 @@ test('cadastro, edição e exclusão de clientes respeitam visitas vinculadas', 
       select(){return this;}, order(){return this;}, eq(key,match){if(key==='id') id=match;return this;},
       insert(payload){action='insert';value=payload;return this;},
       update(payload){action='update';value=payload;return this;},
-      delete(){action='delete';return this;},
+      delete(){action='delete';return this;},single(){return this;},
       then(resolve){
         if(table==='visitas') return Promise.resolve(resolve({count:visits,error:null}));
         if(action==='insert') clients.push({id:'client-1',...value});
@@ -58,5 +58,5 @@ test('cadastro, edição e exclusão de clientes respeitam visitas vinculadas', 
   dom.window.confirm=()=>true;
   page.querySelector('[data-delete]').click();
   await new Promise(resolve=>setTimeout(resolve,0));
-  assert.equal(clients.length,0);
+  assert.equal(clients.length,1);assert.ok(clients[0].excluido_em);assert.equal(page.querySelectorAll('[data-edit]').length,0);
 });

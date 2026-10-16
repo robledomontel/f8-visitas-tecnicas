@@ -1,3 +1,5 @@
+import {allRows,versioned,archive,today,result,showError} from './f8-utils.js';
+import {bindDraft} from './drafts.js';
 import { quotePdf } from './quote-pdf.js';
 
 const ROBLEDO_ID='922c325a-19c7-45fc-958a-8c7e561a9a73';
@@ -8,9 +10,9 @@ const total=q=>Math.max(0,(q.itens||[]).reduce((a,i)=>a+numeric(i.quantidade)*nu
 const capitalizeClient=v=>String(v??'').replace(/^(\s*)(\S)/u,(_,space,first)=>space+first.toLocaleUpperCase('pt-BR'));
 const date=v=>v?String(v).slice(0,10).split('-').reverse().join('/'):'—';
 
-export async function quotesPage({db,el,profile,back}){
+export async function quotesPage({db,el,profile,back,onVisit,onFinance}){
   if(profile.id!==ROBLEDO_ID){el.innerHTML='<p class="notice">Acesso não autorizado.</p>';return}
-  const {data,error}=await db.from('orcamentos_f8').select('*').order('criado_em',{ascending:false});
+  let data,error;try{data=await allRows(()=>db.from('orcamentos_f8').select('*').order('criado_em',{ascending:false}).order('id'));}catch(e){error=e;}
   if(error){el.innerHTML='<p class="notice">Não foi possível carregar os orçamentos. Tente novamente.</p>';return}
   let rows=data||[];
   function list(query=''){
@@ -30,13 +32,13 @@ export async function quotesPage({db,el,profile,back}){
       clients.push(...result.data);if(result.data.length<500)break;
     }
     const fresh=!q;
-    const next=String(Math.max(0,...rows.map(r=>Number(r.numero)||0))+1).padStart(4,'0');
-    q=q||{numero:next,cliente:'',documento:'',telefone:'',email:'',data:new Date().toLocaleDateString('en-CA'),validade:'',projeto:'',status:'Rascunho',itens:[{descricao:'',quantidade:'',valor:''}],desconto:0,acrescimo:0,pagamento:'',observacoes:''};
+    let next=String(Math.max(0,...rows.map(r=>Number(r.numero)||0))+1).padStart(6,'0');if(fresh&&db.rpc){try{next=result(await db.rpc('f8_proximo_orcamento'));}catch(error){el.innerHTML='<p role="alert">Não foi possível reservar o número. Reabra o formulário.</p>';return;}}
+    q=q||{numero:next,cliente:'',documento:'',telefone:'',email:'',data:today(),validade:'',projeto:'',status:'Rascunho',itens:[{descricao:'',quantidade:'',valor:''}],desconto:0,acrescimo:0,pagamento:'',observacoes:''};
     const savedPay=String(q.pagamento||''),payType=/^Crédito/i.test(savedPay)?'Crédito':(/^Débito/i.test(savedPay)?'Débito':(/^Pix/i.test(savedPay)?'Pix':'')),savedInstallment=(savedPay.match(/(\d+)x/i)||[])[1]||'1';
     el.innerHTML=`<div class="welcome"><div><h1>${fresh?'Novo orçamento':'Orçamento #'+esc(q.numero)}</h1><p class="muted">F8 Soluções em Tecnologia</p></div><button class="ghost" id="backQuotes">Voltar</button></div>
       <form id="quoteForm" class="quoteForm">
       <section class="quoteClientPicker"><label>Buscar cliente cadastrado<input id="clientSearch" type="search" autocomplete="off" placeholder="Digite o nome ou CPF/CNPJ"></label><div id="clientMatches" class="clientMatches"></div><p class="muted">Selecione um cliente para preencher os dados. Se for novo, preencha abaixo: ele será cadastrado ao salvar o orçamento.</p></section>
-      <div class="form"><label>Número<input name="numero" required maxlength="50" value="${esc(q.numero)}"></label>
+      <div class="form"><label>Número<input name="numero" required readonly maxlength="50" value="${esc(q.numero)}"></label>
       <label>Status<select name="status">${['Rascunho','Enviado','Aprovado','Recusado'].map(s=>`<option ${q.status===s?'selected':''}>${s}</option>`).join('')}</select></label>
       <label>Cliente / Empresa<input name="cliente" required maxlength="200" autocapitalize="sentences" value="${esc(capitalizeClient(q.cliente))}"></label>
       <label>CPF / CNPJ<input name="documento" maxlength="100" value="${esc(q.documento)}"></label>
@@ -51,7 +53,7 @@ export async function quotesPage({db,el,profile,back}){
       <label>Condição de pagamento<select id="paymentType" required><option value="">Selecione</option>${['Pix','Débito','Crédito'].map(p=>`<option value="${p}" ${payType===p?'selected':''}>${p}</option>`).join('')}</select></label><label id="installmentField" style="${payType==='Crédito'?'':'display:none'}">Parcelamento<select id="installments">${Array.from({length:10},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(n)===savedInstallment?'selected':''}>${n}x</option>`).join('')}</select></label><input type="hidden" name="pagamento" id="paymentValue" value="${esc(savedPay)}">
       <label class="wide">Observações<textarea name="observacoes" maxlength="5000">${esc(q.observacoes)}</textarea></label></div>
       <div class="quoteSummary"><span>Total</span><strong id="quoteTotal">R$ 0,00</strong></div>
-      <div class="actions quoteActions">${fresh?'':`<button type="button" id="deleteQuote" class="danger">Excluir</button><button type="button" id="printQuote" class="ghost">Imprimir / PDF</button>`}<button type="button" class="ghost" id="cancelQuote">Cancelar</button><button id="saveQuote">Salvar orçamento</button></div><p id="quoteMessage" role="alert"></p></form>`;
+      <div class="actions quoteActions">${fresh?'':`<button type="button" id="deleteQuote" class="danger">Excluir</button><button type="button" id="printQuote" class="ghost">Compartilhar PDF</button>`}<button type="button" class="ghost" id="cancelQuote">Cancelar</button><button id="saveQuote">Salvar orçamento</button></div><p id="quoteMessage" role="alert"></p></form>`;
     const f=el.querySelector('#quoteForm'),items=el.querySelector('#quoteItems'),message=el.querySelector('#quoteMessage'),paymentType=el.querySelector('#paymentType'),installmentField=el.querySelector('#installmentField'),installments=el.querySelector('#installments'),paymentValue=el.querySelector('#paymentValue');
     let selectedClientId=q.cliente_id||null;
     const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase('pt-BR');
@@ -83,7 +85,7 @@ export async function quotesPage({db,el,profile,back}){
     }
     function getItems(){return [...items.children].map(x=>({descricao:x.querySelector('.itemDesc').value.trim(),quantidade:Number(x.querySelector('.itemQty').value),valor:Number(x.querySelector('.itemPrice').value)}))}
     function calculate(){el.querySelector('#quoteTotal').textContent=money(total({itens:getItems(),desconto:f.elements.desconto.value,acrescimo:f.elements.acrescimo.value}))}
-    q.itens.forEach(addItem);calculate();
+    q.itens.forEach(addItem);calculate();const draft=bindDraft(f,'orcamento:'+(q.id||'novo'),{collect:()=>({campos:Object.fromEntries(new FormData(f)),itens:getItems()}),apply:values=>{for(const [key,value] of Object.entries(values.campos||{})){if(f.elements[key])f.elements[key].value=value;}items.replaceChildren();(values.itens||[]).forEach(addItem);const pay=values.campos?.pagamento||'';paymentType.value=pay.startsWith('Crédito')?'Crédito':pay;installments.value=(pay.match(/(\d+)x/)||[])[1]||'1';syncPayment();selectedClientId=null;calculate();}});
     f.oninput=calculate;el.querySelector('#addQuoteItem').onclick=()=>addItem();
     el.querySelector('#backQuotes').onclick=()=>list();el.querySelector('#cancelQuote').onclick=()=>list();
     f.onsubmit=async e=>{
@@ -92,16 +94,17 @@ export async function quotesPage({db,el,profile,back}){
       const payload={...fields,cliente:capitalizeClient(fields.cliente.trim()),documento:fields.documento.trim(),cliente_id:selectedClientId,itens:getItems(),desconto:numeric(fields.desconto),acrescimo:numeric(fields.acrescimo),validade:fields.validade||null};
       const button=el.querySelector('#saveQuote');button.disabled=true;message.textContent='';
       try{
-      const result=fresh?await db.from('orcamentos_f8').insert(payload).select().single():await db.from('orcamentos_f8').update({...payload,atualizado_em:new Date().toISOString()}).eq('id',q.id).select().single();
+      const result=fresh?await db.from('orcamentos_f8').insert(payload).select().single():await versioned(db.from('orcamentos_f8').update(payload).eq('id',q.id),q).select().single();
       button.disabled=false;
       if(result.error||!result.data){message.textContent=result.error?.message||'Não foi possível salvar. Confira os dados e tente novamente.';return}
-      rows=fresh?[result.data,...rows]:rows.map(x=>x.id===q.id?result.data:x);list();
+      draft.clear();rows=fresh?[result.data,...rows]:rows.map(x=>x.id===q.id?result.data:x);list();
       }catch(error){message.textContent='Não foi possível salvar. Tente novamente.'}finally{button.disabled=false}
     };
     if(!fresh){
+      const panel=document.createElement('section');panel.className='integrationPanel';panel.innerHTML=`<h2>Próximas etapas</h2><p>As ações usam a versão salva. Salve a aprovação e as alterações antes de continuar. Criar previsão não registra recebimento.</p><label>Data da visita / primeiro vencimento<input type="date" id="workflowDate" required value="${today()}"></label><label>Parcelas mensais<input id="workflowParts" type="number" min="1" max="120" value="1"></label><div class="actions"><button type="button" id="quoteVisit">Criar / abrir visita</button><button type="button" id="quoteReceivable">Gerar contas a receber</button></div><p role="status" id="workflowMessage"></p>`;f.after(panel);panel.querySelector('#quoteVisit').onclick=()=>runWorkflow('f8_visita_orcamento');panel.querySelector('#quoteReceivable').onclick=()=>runWorkflow('f8_faturar_orcamento');async function runWorkflow(name){const date=panel.querySelector('#workflowDate').value,parts=Number(panel.querySelector('#workflowParts').value);if(!date||!Number.isInteger(parts)||parts<1||parts>120){panel.querySelector('[role]').textContent='Confira a data e o parcelamento.';return;}panel.querySelectorAll('button').forEach(b=>b.disabled=true);try{const args=name==='f8_visita_orcamento'?{p_id:q.id,p_data:date}:{p_id:q.id,p_vencimento:date,p_parcelas:parts};const value=result(await db.rpc(name,args));panel.querySelector('[role]').textContent=name==='f8_visita_orcamento'?'Visita vinculada.':'Previsões criadas no financeiro.';if(name==='f8_visita_orcamento'&&onVisit)onVisit(value);else if(onFinance)onFinance();}catch(error){showError(panel.querySelector('[role]'),error);}finally{panel.querySelectorAll('button').forEach(b=>b.disabled=false);}}
       el.querySelector('#deleteQuote').onclick=async()=>{
-        if(!confirm('Excluir este orçamento?'))return;
-        const {error}=await db.from('orcamentos_f8').delete().eq('id',q.id);
+        if(!confirm('Mover este orçamento para a lixeira? Os lançamentos e visitas vinculados serão preservados.'))return;
+        let error;try{await archive(db,'orcamentos_f8',q);}catch(e){error=e;}
         if(error){message.textContent='Não foi possível excluir o orçamento.';return}
         rows=rows.filter(x=>x.id!==q.id);list();
       };

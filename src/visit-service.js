@@ -1,7 +1,9 @@
+import {versioned,result} from './f8-utils.js';
 export const textFields = ['cliente_id', 'data_visita', 'hora_chegada', 'hora_saida', 'responsavel_local', 'telefone_responsavel', 'tipo', 'sistema', 'solicitacao', 'situacao_encontrada', 'diagnostico', 'servico_executado', 'testes_realizados', 'recomendacoes', 'observacoes', 'status'];
 export function visitPayload(form) {
   const payload = Object.fromEntries(textFields.map(key => [key, form.get(key) || null]));
   for (const key of ['necessita_orcamento', 'necessita_nova_visita']) payload[key] = form.has(key);
+  if(form.has('checklist'))payload.checklist=JSON.parse(form.get('checklist')||'[]');
   return payload;
 }
 export function checked(result) {
@@ -31,15 +33,14 @@ export function visitService(db) {
       item.saved = true;
     },
     async removePhoto(photo) {
-      // The database trigger records a durable cleanup job in the same transaction.
-      const rows = checked(await db.from('fotos_visita').delete().eq('id', photo.id).select('id'));
-      if (!rows.length) throw new Error('Foto não encontrada ou sem permissão para excluir.');
-      return this.cleanup(photo.visita_id).catch(() => 1);
+      const row=checked(await db.from('fotos_visita').update({excluido_em:new Date().toISOString()}).eq('id',photo.id).select('id').maybeSingle());
+      if(!row)throw new Error('Foto não encontrada ou sem permissão para excluir.');
+      return 0;
     },
     async removeVisit(visit) {
-      const rows = checked(await db.from('visitas').delete().eq('id', visit.id).eq('atualizado_em', visit.atualizado_em).select('id'));
-      if (!rows.length) throw new Error('A visita mudou ou você não tem permissão. Atualize a lista e tente novamente.');
-      return this.cleanup(visit.id).catch(() => 1);
+      const row=checked(await db.from('visitas').update({excluido_em:new Date().toISOString()}).eq('id',visit.id).eq('atualizado_em',visit.atualizado_em).select('id').maybeSingle());
+      if(!row)throw new Error('A visita mudou ou você não tem permissão. Atualize a lista.');
+      return 0;
     },
     async cleanup(visitId) {
       let query = db.from('arquivos_limpeza').select('*').order('criado_em').limit(1000);

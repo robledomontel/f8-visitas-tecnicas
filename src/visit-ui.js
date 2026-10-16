@@ -1,3 +1,6 @@
+import {allRows} from './f8-utils.js';
+import {bindDraft} from './drafts.js';
+import {checklistEditor} from './checklists.js';
 import {applyVisitDashboardFilter} from './visit-dashboard.js';
 import {checked, visitPayload, visitService} from './visit-service.js';
 
@@ -20,7 +23,7 @@ function confirmDelete(title, description) {
   return new Promise(resolve => {
     const dialog = document.createElement('dialog');
     dialog.className = 'confirmDialog';
-    dialog.innerHTML = `<h2>${esc(title)}</h2><p>${esc(description)}</p><div class="actions"><button class="ghost" data-cancel>Cancelar</button><button class="danger" data-confirm>Excluir definitivamente</button></div>`;
+    dialog.innerHTML = `<h2>${esc(title)}</h2><p>${esc(description)}</p><div class="actions"><button class="ghost" data-cancel>Cancelar</button><button class="danger" data-confirm>Mover para lixeira</button></div>`;
     const finish = result => {dialog.close(); dialog.remove(); resolve(result);};
     dialog.querySelector('[data-cancel]').onclick = () => finish(false);
     dialog.querySelector('[data-confirm]').onclick = () => finish(true);
@@ -41,7 +44,7 @@ export async function manageVisits({db, el, profile, report, edit, filter = null
     for (let start = 0; ; start += 500) {
       const query = applyVisitDashboardFilter(db.from('visitas').select('*,clientes(nome)'), filter);
       const batch = checked(await query.order('numero', {ascending:false}).range(start, start + 499));
-      visits.push(...batch); if (batch.length < 500) break;
+      visits.push(...batch.filter(v=>!v.excluido_em)); if (batch.length < 500) break;
     }
     if (!el.isConnected) return;
     el.innerHTML = `<h1>${filter ? `Visitas — ${esc(filter.label)}` : 'Gerenciar visitas'}</h1>${filter ? `<div class="inline"><span>Filtro ativo: ${esc(filter.label)}</span><button type="button" class="ghost" id="clearVisitFilter">Ver todas as visitas</button></div>` : ''}<p class="muted">Edite o cadastro, gerencie fotos ou exclua uma visita.</p><label>Buscar visita<input id="visitSearch" type="search" placeholder="Número, cliente, data ou sistema"></label><div id="cleanupMessage" role="status"></div><p id="manageMessage" role="status"></p><div id="visitList"></div>`;
@@ -55,12 +58,12 @@ export async function manageVisits({db, el, profile, report, edit, filter = null
       el.querySelectorAll('[data-report]').forEach(b => b.onclick = () => report(b.dataset.report));
       el.querySelectorAll('[data-delete]').forEach(b => b.onclick = async () => {
         const visit = visits.find(v => v.id === b.dataset.delete);
-        if (!await confirmDelete(`Excluir visita #${visit.numero}?`, `Cliente: ${visit.clientes?.nome}. A visita, fotos, assinaturas, equipamentos, materiais, técnicos e pendências vinculados serão excluídos permanentemente. Esta ação não pode ser desfeita.`)) return;
+        if (!await confirmDelete(`Excluir visita #${visit.numero}?`, `Cliente: ${visit.clientes?.nome}. A visita será movida para a lixeira. As fotos e os dados vinculados serão preservados para recuperação.`)) return;
         setBusy(true);
         try {
           const pending = await service.removeVisit(visit);
           visits.splice(visits.indexOf(visit), 1);
-          message.textContent = pending ? 'Visita excluída. Há arquivos aguardando limpeza; use o botão abaixo para tentar novamente.' : 'Visita e arquivos vinculados excluídos.';
+          message.textContent = pending ? 'Visita excluída. Há arquivos aguardando limpeza; use o botão abaixo para tentar novamente.' : 'Visita movida para a lixeira. Fotos preservadas.';
           render(); await cleanupNotice();
         } catch (error) { message.textContent = `Não foi possível concluir: ${error.message}`; }
         finally { setBusy(false); }
@@ -90,9 +93,9 @@ export async function visitForm({db, el, id, back}) {
   let visit, photos, clients;
   try {
     [clients, visit, photos] = await Promise.all([
-      db.from('clientes').select('id,nome').order('nome').then(checked),
+      allRows(()=>db.from('clientes').select('id,nome').order('nome').order('id')),
       id ? db.from('visitas').select('*').eq('id',id).single().then(checked) : null,
-      id ? db.from('fotos_visita').select('*').eq('visita_id',id).order('criado_em').then(checked) : [],
+      id ? allRows(()=>db.from('fotos_visita').select('*').eq('visita_id',id).order('criado_em').order('id')) : [],
     ]);
   } catch (error) {el.innerHTML = `<p role="alert">Não foi possível abrir o cadastro: ${esc(error.message)}</p>`; return;}
   const now = new Date();
@@ -118,6 +121,7 @@ export async function visitForm({db, el, id, back}) {
       <div id="newPhotos" class="photoGrid"></div>
     </section><button class="wide" id="saveVisit">${id ? 'Salvar alterações' : 'Salvar visita'}</button></form>`;
   const form = el.querySelector('#visit'), message = el.querySelector('#saveMessage');
+  const checklist=checklistEditor(form,v.checklist||[]);const draft=bindDraft(form,'visita:'+(id||'nova'),{collect:()=>Object.fromEntries([...form.elements].filter(e=>e.name&&e.type!=='file').map(e=>[e.name,e.type==='checkbox'?e.checked:e.value])),apply:values=>{for(const e of form.elements){if(e.name in values&&e.type!=='file'){if(e.type==='checkbox')e.checked=values[e.name];else e.value=values[e.name];}}checklist.refresh();}});
   const pending = [];
   dispose = () => pending.forEach(item => URL.revokeObjectURL(item.url));
   form.oninput = () => {dirty = true;}; form.onchange = () => {dirty = true;};
@@ -166,7 +170,7 @@ export async function visitForm({db, el, id, back}) {
     event.target.value = ''; dirty = true; renderPending();
   };
   form.onsubmit = async event => {
-    event.preventDefault(); if (busy) return;
+    event.preventDefault(); if (busy) return;if(!checklist.validate()){message.textContent='Conclua os itens do checklist ou marque Não se aplica antes de concluir a visita.';return;}
     const payload = visitPayload(new FormData(form));
     // A prior location remains stored unless the visit moves to another client.
     if (visit && payload.cliente_id !== visit.cliente_id) payload.local_id = null;
@@ -183,7 +187,7 @@ export async function visitForm({db, el, id, back}) {
         photo.changed = false;
       }
       for (const item of pending) await service.upload(visit.id,item,user.id);
-      dirty = false; setBusy(false); back();
+      draft.clear();dirty = false; setBusy(false); back();
     } catch (error) {
       message.textContent = `${savedThisAttempt ? 'O cadastro foi salvo. Confira as fotos e tente salvar novamente. ' : ''}${error.message}`;
     } finally {setBusy(false);}

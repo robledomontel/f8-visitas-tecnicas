@@ -1,3 +1,6 @@
+import {allRows,archive} from './f8-utils.js';
+import {bindDraft} from './drafts.js';
+import {clientFile} from './cliente-ficha.js';
 import localidades from './localidades.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -8,15 +11,16 @@ export function clientPayload(form) {
   return Object.fromEntries(fields.map(name => [name, form.elements[name].value.trim() || null]));
 }
 
-export async function clientsPage({db, el}) {
+export async function clientsPage({db, el,profile,onVisit}) {
   el.innerHTML = '<h1>Clientes</h1><p id="clientMessage" role="status"></p><div id="clientForm"></div><div id="clientList"></div>';
   const message = el.querySelector('#clientMessage');
   let clients;
   async function load() {
-    const {data,error} = await db.from('clientes').select('*').order('nome');
+    let data,error;try{data=await allRows(()=>db.from('clientes').select('*').order('nome').order('id'));}catch(e){error=e;}
     if (error) { message.textContent = `Não foi possível carregar clientes: ${error.message}`; return; }
     clients = data || [];
-    el.querySelector('#clientList').innerHTML = clients.map(c => `<article class="row reportRow"><div><b>${esc(c.nome)}</b><span>${esc([c.cidade,c.estado].filter(Boolean).join(' / '))}${c.telefone ? ` · ${esc(c.telefone)}` : ''}</span></div><div class="actions"><button type="button" data-edit="${esc(c.id)}">Editar</button><button type="button" class="danger" data-delete="${esc(c.id)}">Apagar</button></div></article>`).join('') || '<p>Nenhum cliente cadastrado.</p>';
+    el.querySelector('#clientList').innerHTML = clients.map(c => `<article class="row reportRow"><div><b>${esc(c.nome)}</b><span>${esc([c.cidade,c.estado].filter(Boolean).join(' / '))}${c.telefone ? ` · ${esc(c.telefone)}` : ''}</span></div><div class="actions"><button type="button" data-file="${esc(c.id)}">Ficha completa</button><button type="button" data-edit="${esc(c.id)}">Editar</button><button type="button" class="danger" data-delete="${esc(c.id)}">Apagar</button></div></article>`).join('') || '<p>Nenhum cliente cadastrado.</p>';
+    el.querySelectorAll('[data-file]').forEach(b=>b.onclick=()=>clientFile({db,el,profile,client:clients.find(c=>c.id===b.dataset.file),back:()=>clientsPage({db,el,profile,onVisit}),onVisit}));
     el.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => showForm(clients.find(c => c.id === b.dataset.edit)));
     el.querySelectorAll('[data-delete]').forEach(b => b.onclick = () => remove(clients.find(c => c.id === b.dataset.delete)));
   }
@@ -43,6 +47,7 @@ export async function clientsPage({db, el}) {
     fillCities(client?.cidade || '');
     form.elements.estado.onchange = () => fillCities();
     if (editing) form.querySelector('#cancelClient').onclick = () => showForm();
+    const draft=bindDraft(form,'cliente:'+(client?.id||'novo'),{collect:()=>Object.fromEntries(new FormData(form)),apply:values=>{for(const key of ['nome','endereco','estado','documento','telefone','responsavel'])form.elements[key].value=values[key]||'';fillCities(values.cidade);}});
     form.onsubmit = async event => {
       event.preventDefault();
       const button = form.querySelector('[type=submit]'); button.disabled = true; message.textContent = '';
@@ -52,7 +57,7 @@ export async function clientsPage({db, el}) {
       if (result.error) { message.textContent = `Não foi possível salvar o cliente: ${result.error.message}`; return; }
       if (!result.data?.length) { message.textContent = 'O cliente não foi alterado. Atualize a página e tente novamente.'; return; }
       message.textContent = editing ? 'Cliente atualizado.' : 'Cliente cadastrado.';
-      showForm(); await load();
+      draft.clear();showForm(); await load();
     };
     if (editing) form.scrollIntoView({block:'start',behavior:'smooth'});
   }
@@ -61,8 +66,8 @@ export async function clientsPage({db, el}) {
     const {count,error} = await db.from('visitas').select('id',{count:'exact',head:true}).eq('cliente_id',client.id);
     if (error) { message.textContent = `Não foi possível verificar as visitas do cliente: ${error.message}`; return; }
     if (count) { message.textContent = `Não é possível apagar ${client.nome}: há ${count} visita${count===1?'':'s'} vinculada${count===1?'':'s'}.`; return; }
-    if (!window.confirm(`Apagar o cliente “${client.nome}”? Os locais vinculados também serão apagados. Esta ação não pode ser desfeita.`)) return;
-    const result = await db.from('clientes').delete().eq('id',client.id).select('id');
+    if (!window.confirm(`Mover o cliente “${client.nome}” para a lixeira? Será possível restaurá-lo depois.`)) return;
+    let result;try{await archive(db,'clientes',client);result={data:[{id:client.id}]};}catch(error){result={error};}
     if (result.error) { message.textContent = `Não foi possível apagar o cliente: ${result.error.message}`; return; }
     if (!result.data?.length) { message.textContent = 'O cliente não foi apagado. Atualize a página e tente novamente.'; return; }
     message.textContent = 'Cliente apagado.'; showForm(); await load();

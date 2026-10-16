@@ -11,5 +11,5 @@ export function visitDashboardCards(now = new Date()) {
 }
 
 export function applyVisitDashboardFilter(query, filter) {
-  return filter ? query.eq(filter.column, filter.value) : query;
+  if(typeof query.is==='function')query=query.is(filter?.table==='pendencias'?'visitas.excluido_em':'excluido_em',null);return filter ? query.eq(filter.column, filter.value) : query;
 }

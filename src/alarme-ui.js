@@ -1,3 +1,4 @@
+import {allRows} from './f8-utils.js';
 const OWNER='922c325a-19c7-45fc-958a-8c7e561a9a73';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export async function alarmePage({db,el,profile}){
@@ -14,16 +15,17 @@ export async function alarmePage({db,el,profile}){
     list.querySelectorAll('[data-edit]').forEach(button=>button.onclick=()=>showForm(records.find(r=>r.id===button.dataset.edit)));
   }
   async function load(){
-    try{const {data,error}=await db.from('alarme_sistemas').select('id,cliente,mac_cloud,senha,remoto').order('cliente');if(error)throw error;records=data||[];render();}
+    try{const data=await allRows(()=>db.from('alarme_sistemas').select('id,cliente,cliente_id,mac_cloud,senha,remoto').order('cliente').order('id'));records=data||[];render();}
     catch{list.innerHTML='<p>Não foi possível carregar os cadastros.</p><button id="retryAlarme" type="button">Tentar novamente</button>';list.querySelector('button').onclick=load;}
   }
   function showForm(record=null){
-    formBox.innerHTML=`<form class="form" autocomplete="off"><h2 class="wide">${record?'Editar cadastro':'Adicionar cliente Sistema Alarme'}</h2><label class="wide">Cliente<input name="cliente" list="alarmeClients" required maxlength="200" placeholder="Selecione ou digite o cliente" value="${esc(record?.cliente)}"></label><datalist id="alarmeClients">${clients.map(c=>`<option value="${esc(c.nome)}"></option>`).join('')}</datalist><label class="wide">MAC/Cloud<input name="mac_cloud" required maxlength="300" autocapitalize="none" spellcheck="false" value="${esc(record?.mac_cloud)}"></label><label class="wide">Senha<input name="senha" type="password" required maxlength="500" autocomplete="new-password" autocapitalize="none" spellcheck="false"></label><label class="wide">Remoto<input name="remoto" maxlength="500" autocapitalize="none" spellcheck="false" value="${esc(record?.remoto)}"></label><div class="actions wide"><button type="button" id="toggleAlarmePassword" aria-pressed="false">Mostrar senha</button><button type="submit">Salvar</button><button type="button" class="ghost" id="cancelAlarme">Cancelar</button></div></form>`;
-    const form=formBox.querySelector('form');form.elements.senha.value=record?.senha??'';
+    formBox.innerHTML=`<form class="form" autocomplete="off"><h2 class="wide">${record?'Editar cadastro':'Adicionar cliente Sistema Alarme'}</h2><label class="wide">Vincular ao cadastro de cliente<select name="cliente_id"><option value="">Sem vínculo / digitar nome abaixo</option>${clients.map(c=>`<option value="${esc(c.id||'')}" ${record?.cliente_id===c.id?'selected':''}>${esc(c.nome)}</option>`).join('')}</select></label><label class="wide">Cliente<input name="cliente" list="alarmeClients" required maxlength="200" placeholder="Selecione ou digite o cliente" value="${esc(record?.cliente)}"></label><datalist id="alarmeClients">${clients.map(c=>`<option value="${esc(c.nome)}"></option>`).join('')}</datalist><label class="wide">MAC/Cloud<input name="mac_cloud" required maxlength="300" autocapitalize="none" spellcheck="false" value="${esc(record?.mac_cloud)}"></label><label class="wide">Senha<input name="senha" type="password" required maxlength="500" autocomplete="new-password" autocapitalize="none" spellcheck="false"></label><label class="wide">Remoto<input name="remoto" maxlength="500" autocapitalize="none" spellcheck="false" value="${esc(record?.remoto)}"></label><div class="actions wide"><button type="button" id="toggleAlarmePassword" aria-pressed="false">Mostrar senha</button><button type="submit">Salvar</button><button type="button" class="ghost" id="cancelAlarme">Cancelar</button></div></form>`;
+    const form=formBox.querySelector('form');form.elements.cliente_id.onchange=()=>{const client=clients.find(c=>c.id===form.elements.cliente_id.value);if(client)form.elements.cliente.value=client.nome;};form.elements.cliente.oninput=()=>{form.elements.cliente_id.value='';};form.elements.senha.value=record?.senha??'';
     form.querySelector('#toggleAlarmePassword').onclick=e=>toggle(form.elements.senha,e.currentTarget);
     form.querySelector('#cancelAlarme').onclick=()=>{formBox.replaceChildren()};
     form.onsubmit=async event=>{
       event.preventDefault();const payload={cliente:form.elements.cliente.value.trim(),mac_cloud:form.elements.mac_cloud.value.trim(),senha:form.elements.senha.value,remoto:form.elements.remoto.value.trim()};
+      const matches=clients.filter(c=>c.nome.trim().toLocaleLowerCase('pt-BR')===payload.cliente.toLocaleLowerCase('pt-BR'));payload.cliente_id=form.elements.cliente_id.value||(matches.length===1?matches[0].id:null)||null;
       if(!payload.cliente||!payload.mac_cloud||!payload.senha){message.textContent='Preencha Cliente, MAC/Cloud e Senha.';return;}
       const button=form.querySelector('[type="submit"]');button.disabled=true;message.textContent='Salvando…';
       try{const query=record?db.from('alarme_sistemas').update(payload).eq('id',record.id):db.from('alarme_sistemas').insert(payload);const {data,error}=await query.select('id');if(error||!data?.length)throw error||new Error();formBox.replaceChildren();message.textContent='Cadastro salvo.';await load();}
@@ -34,5 +36,5 @@ export async function alarmePage({db,el,profile}){
   }
   el.querySelector('#newAlarme').onclick=()=>showForm();
   el.querySelector('#alarmeSearch').oninput=render;
-  await Promise.all([load(),(async()=>{try{const {data}=await db.from('clientes').select('nome').order('nome');clients=data||[];}catch{clients=[];}})()]);
+  await Promise.all([load(),(async()=>{try{clients=await allRows(()=>db.from('clientes').select('id,nome').order('id'));}catch{clients=[];}})()]);
 }

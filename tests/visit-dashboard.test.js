@@ -1,3 +1,4 @@
+import {allRows} from '../src/f8-utils.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -31,9 +32,9 @@ test('all dashboard cards open exactly the counted records; search and clearing 
   const {manageVisits}=await import('../src/visit-ui.js');
   const source=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
   const dashboardCode=source.slice(source.indexOf('async function dashboard'),source.indexOf('async function abrirRelatorio'));
-  const pageCode=source.slice(source.indexOf('async function page'),source.indexOf('\nboot()'));
+  const pageCode=source.slice(source.indexOf('async function page'),source.indexOf('\nconnectivity()'));
   const db=database(visitDashboardCards()[0].value),app=document.querySelector('#app');
-  const dashboard=new Function('supabase','document','app','logo','esc','visitDashboardCards','applyVisitDashboardFilter','leaveVisit','manageVisits','abrirRelatorio',`${dashboardCode}\n${pageCode}\nreturn dashboard;`)(db,document,app,'',v=>String(v??''),visitDashboardCards,applyVisitDashboardFilter,()=>true,manageVisits,()=>{});
+  const dashboard=new Function('supabase','document','app','logo','esc','visitDashboardCards','applyVisitDashboardFilter','leaveVisit','manageVisits','abrirRelatorio','enhanceNavigation','allRows',`${dashboardCode}\n${pageCode}\nreturn dashboard;`)(db,document,app,'',v=>String(v??''),visitDashboardCards,applyVisitDashboardFilter,()=>true,manageVisits,()=>{},()=>{},allRows);
   const expected={hoje:['v1'],andamento:['v1'],concluidas:['v2'],material:['v3'],orcamento:['v3','v4']};
   for(const card of visitDashboardCards()){
     await dashboard({id:'regular-user',nome:'Técnico'});

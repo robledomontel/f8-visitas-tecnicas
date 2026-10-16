@@ -52,6 +52,7 @@ export async function visitPdf(visit, photos = [], loadPhoto = pdfPhoto, progres
   const date = visit.data_visita ? String(visit.data_visita).slice(0, 10).split('-').reverse().join('/') : '-';
   detail('Data / Tipo / Sistema / Status', `${date} · ${visit.tipo || '-'} · ${visit.sistema || '-'} · ${visit.status || '-'}`);
   for(const [label, key] of [['Solicitação do cliente','solicitacao'],['Situação encontrada','situacao_encontrada'],['Diagnóstico','diagnostico'],['Serviço executado','servico_executado'],['Testes realizados','testes_realizados'],['Recomendações','recomendacoes'],['Observações','observacoes']])detail(label, visit[key]);
+  if(visit.checklist?.length)detail('Checklist do serviço',visit.checklist.map(c=>`${c.label}: ${c.status==='feito'?'Conferido':c.status==='na'?'Não se aplica':'Pendente'}`).join('\n'));
   if(!photos.length)detail('Registro fotográfico', 'Sem fotos.');
   for(let i = 0; i < photos.length; i++) {
     progress(i + 1, photos.length);

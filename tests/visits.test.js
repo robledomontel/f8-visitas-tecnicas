@@ -1,3 +1,4 @@
+import {allRows} from '../src/f8-utils.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
@@ -59,17 +60,17 @@ test('photo upload failure is retryable without duplicate metadata or files',asy
   await service.upload('visit',item,'user');item.caption='Nova legenda';await service.upload('visit',item,'user');
   assert.equal(db.files.size,1);assert.equal(db.tables.fotos_visita.length,1);assert.equal(db.tables.fotos_visita[0].legenda,'Nova legenda');
 });
-test('visit deletion leaves durable cleanup on storage failure and retry removes it',async()=>{
+test('visit trash preserves its photos and files even when storage is unavailable',async()=>{
   const db=database(),service=visitService(db),visit=await service.save({cliente_id:'client'},null,'user');
   await service.upload(visit.id,{file:{name:'teste.png',type:'image/png'},category:'antes'},'user');
-  db.failRemove=true;assert.equal(await service.removeVisit(visit),1);
-  assert.equal(db.tables.visitas.length,0);assert.equal(db.tables.fotos_visita.length,0);assert.equal(db.tables.arquivos_limpeza.length,1);assert.equal(db.files.size,1);
-  db.failRemove=false;assert.equal(await service.cleanup(),0);assert.equal(db.files.size,0);assert.equal(db.tables.arquivos_limpeza.length,0);
+  db.failRemove=true;assert.equal(await service.removeVisit(visit),0);
+  assert.equal(db.tables.visitas.length,1);assert.ok(db.tables.visitas[0].excluido_em);assert.equal(db.tables.fotos_visita.length,1);assert.equal(db.tables.arquivos_limpeza.length,0);assert.equal(db.files.size,1);
+  db.failRemove=false;assert.equal(await service.cleanup(),0);assert.equal(db.files.size,1);assert.equal(db.tables.arquivos_limpeza.length,0);
 });
 test('individual photo deletion preserves its visit',async()=>{
   const db=database(),service=visitService(db),visit=await service.save({cliente_id:'client'},null,'user'),item={file:{name:'teste.png',type:'image/png'},category:'antes'};
   await service.upload(visit.id,item,'user');await service.removePhoto(item.record);
-  assert.equal(db.tables.visitas.length,1);assert.equal(db.tables.fotos_visita.length,0);assert.equal(db.files.size,0);
+  assert.equal(db.tables.visitas.length,1);assert.equal(db.tables.fotos_visita.length,1);assert.ok(db.tables.fotos_visita[0].excluido_em);assert.equal(db.files.size,1);
 });
 test('form exposes editable fields and existing values; cancel deletion does nothing',async()=>{
   const dom=new JSDOM('<nav><button>Menu</button></nav><main id="page"></main>',{url:'https://example.test'});
@@ -97,9 +98,9 @@ test('report prepares a PDF before the user shares it and restores page scrollin
   const prepare=async()=>pdfFile;
   const scrolls=[];dom.window.scrollTo=(x,y)=>scrolls.push([x,y]);
   Object.defineProperty(dom.window,'scrollY',{value:420});
-  const db={from:table=>({select(){return this;},eq(){return this;},single:async()=>({data:{numero:7,clientes:{nome:'Cliente <teste>'},diagnostico:'Diagnóstico revisado'}}),then(resolve){return Promise.resolve({data:[{arquivo_path:'7/photo.png',categoria:'antes'}]}).then(resolve);}}),storage:{from:()=>({createSignedUrl:async()=>({data:{signedUrl:'https://example.test/photo.png'}})})}};
+  const db={from:table=>({select(){return this;},eq(){return this;},order(){return this;},single:async()=>({data:{numero:7,clientes:{nome:'Cliente <teste>'},diagnostico:'Diagnóstico revisado'}}),then(resolve){return Promise.resolve({data:[{arquivo_path:'7/photo.png',categoria:'antes'}]}).then(resolve);}}),storage:{from:()=>({createSignedUrl:async()=>({data:{signedUrl:'https://example.test/photo.png'}})})}};
   const esc=value=>String(value??'').replaceAll('<','&lt;').replaceAll('>','&gt;');
-  const report=new Function('supabase','window','document','esc','visitPdfFile','navigator',`${reportCode};return abrirRelatorio;`)(db,dom.window,dom.window.document,esc,prepare,nav);
+  const report=new Function('supabase','window','document','esc','visitPdfFile','navigator','allRows',`${reportCode};return abrirRelatorio;`)(db,dom.window,dom.window.document,esc,prepare,nav,allRows);
   await report('7');
   const preview=dom.window.document.querySelector('#reportPreview');
   assert.ok(preview);assert.match(preview.innerHTML,/Cliente &lt;teste&gt;/);assert.match(preview.innerHTML,/Diagnóstico revisado/);

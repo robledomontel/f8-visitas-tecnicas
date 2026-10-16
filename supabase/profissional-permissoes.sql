@@ -1,0 +1,16 @@
+begin;
+alter function public.f8_proximo_orcamento() set schema private;
+alter function public.f8_backup(boolean) set schema private;
+alter function public.f8_listar_backups() set schema private;
+alter function public.f8_snapshot_conteudo(uuid) set schema private;
+alter function public.f8_restaurar_registro(uuid,text,uuid) set schema private;
+create function public.f8_proximo_orcamento() returns text language sql security invoker set search_path='' as 'select private.f8_proximo_orcamento()';
+create function public.f8_backup(p_criar boolean default false) returns jsonb language sql security invoker set search_path='' as 'select private.f8_backup(p_criar)';
+create function public.f8_listar_backups() returns table(id uuid,criado_em timestamptz) language sql security invoker set search_path='' as 'select * from private.f8_listar_backups()';
+create function public.f8_snapshot_conteudo(p_id uuid) returns jsonb language sql security invoker set search_path='' as 'select private.f8_snapshot_conteudo(p_id)';
+create function public.f8_restaurar_registro(p_snapshot uuid,p_tabela text,p_id uuid) returns void language sql security invoker set search_path='' as 'select private.f8_restaurar_registro(p_snapshot,p_tabela,p_id)';
+revoke all on function public.f8_proximo_orcamento(),public.f8_backup(boolean),public.f8_listar_backups(),public.f8_snapshot_conteudo(uuid),public.f8_restaurar_registro(uuid,text,uuid) from public,anon;
+grant execute on function public.f8_proximo_orcamento(),public.f8_backup(boolean),public.f8_listar_backups(),public.f8_snapshot_conteudo(uuid),public.f8_restaurar_registro(uuid,text,uuid) to authenticated;
+create extension if not exists pg_cron;
+select cron.schedule('f8-backup-diario','0 6 * * *','select private.f8_snapshot()');
+commit;
