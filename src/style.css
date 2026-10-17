@@ -163,3 +163,31 @@ nav i{font-style:normal;display:inline-block;min-width:24px;text-align:center;ma
 @media(max-width:720px){nav.animatedNav{justify-content:space-around;overflow:visible}nav.animatedNav button{min-width:0;flex:1;font-size:11px}.moreMenu{position:fixed;bottom:120px;left:12px;right:12px;z-index:32;box-shadow:0 10px 40px #0004;max-height:60vh;overflow:auto}.checklistBox #checklistItems{grid-template-columns:1fr}.hubTools button{flex:1 1 100%}.dueCards b{font-size:22px}}
 
 .agendaPush{background:#fff;border:1px solid #dce7ef;border-radius:16px;padding:20px;margin:0 0 20px;min-width:0}.agendaPush p{line-height:1.5;color:#526273}.agendaPush [hidden]{display:none!important}
+
+/* Login F8: vidro sobre grafite com reflexos metálicos. */
+.loginPremium{position:relative;isolation:isolate;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:24px;padding:40px 20px;color:#f4f7fc;background:radial-gradient(ellipse at 15% 10%,#14334c80,transparent 48%),radial-gradient(ellipse at 100% 90%,#4e391a40,transparent 48%),#070b12}
+.loginBackdrop{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.loginRibbon{position:absolute;width:155%;height:46%;border-radius:50%;transform:rotate(-31deg);border-top:2px solid #d6b2659c;border-bottom:1px solid #8dbde52b;background:linear-gradient(180deg,#8d9cb51a,transparent 12%,#080c12c9 65%,#b2cad11a 92%,#f5c86a40 99%,transparent);box-shadow:0 -8px 30px #0008,inset 0 2px 2px #ffe6af28;animation:loginDrift 18s ease-in-out infinite alternate}
+.ribbonOne{top:-14%;left:-45%}.ribbonTwo{bottom:-4%;left:-5%;height:37%;border-top-color:#deb35c85;animation-delay:-7s}.ribbonThree{top:31%;left:30%;height:29%;border-top-color:#6eb8ee45;opacity:.55;animation-delay:-12s}
+.loginPremium .loginCard{position:relative;flex:none;width:min(440px,100%);padding:36px 36px 26px;border:1px solid #dbeaff26;border-radius:26px;background:linear-gradient(140deg,#ffffff10,#ffffff04),#101824c9;box-shadow:0 30px 90px #0009,inset 0 1px 0 #ffffff12;-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px)}
+.loginBrand{display:flex;justify-content:center;margin-bottom:27px}.loginBrand img{width:170px;height:auto;object-fit:contain}
+.loginEyebrow{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:2.5px;font-weight:700;color:#a7b7cb}.loginEyebrow span{width:6px;height:6px;border-radius:50%;background:#e9bd60;box-shadow:0 0 12px #e9bd6060}
+.loginPremium h1{margin:13px 0 10px;font-size:clamp(27px,6vw,33px);line-height:1.2;letter-spacing:-1.2px;font-weight:650}.loginPremium h1 em{font-style:normal;color:#f0ce87}
+.loginPremium .loginIntro{color:#a8b6c8;font-size:14px;margin:0 0 28px;line-height:1.6}
+.loginPremium label{font-size:12px;color:#d6dfec;margin:19px 0 8px;font-weight:500}
+.loginField{display:flex;align-items:center;min-width:0;gap:11px;padding:0 14px;border:1px solid #ffffff20;background:#03081066;border-radius:11px;transition:border-color .2s,box-shadow .2s}
+.loginField:focus-within{border-color:#e5be6f;box-shadow:0 0 0 3px #e5be6f14}
+.loginField>svg{flex:none;width:18px;height:18px;color:#91a4bd}
+.loginPremium .loginField input{border:0;border-radius:0;outline:none;box-shadow:none;background:transparent;color:#f4f7fc;padding:15px 0;min-height:52px;flex:1;min-width:0;caret-color:#f0ce87}
+.loginField input::placeholder{color:#8393a9;font-size:14px}
+.loginField input:-webkit-autofill{-webkit-text-fill-color:#f4f7fc;box-shadow:0 0 0 1000px #162131 inset;border-radius:4px}
+.loginPremium form #togglePassword{display:grid;place-items:center;flex:none;width:44px;min-height:44px;margin:0 -10px 0 0;padding:10px;background:transparent;color:#a8b6c8;border-radius:7px}
+#togglePassword svg{width:20px;height:20px}#togglePassword[aria-pressed=true]{color:#f0ce87}
+.loginPremium .error{font-size:13px;line-height:1.5;color:#ffb6ac;margin:10px 0;min-height:20px}
+.loginPremium form .loginSubmit{display:flex;justify-content:center;align-items:center;gap:16px;width:100%;margin:0;min-height:52px;color:#17130a;background:linear-gradient(110deg,#f6dc9b,#dfb45a);border:1px solid #ffe8b0;box-shadow:0 6px 24px #d9aa3d1f;border-radius:11px;font-size:14px;transition:filter .2s,transform .2s}
+.loginSubmit span{font-size:21px;line-height:1}.loginSubmit:hover{filter:brightness(1.08)}.loginSubmit:active{transform:translateY(1px)}
+.loginFooter{display:flex;align-items:center;justify-content:center;gap:7px;border-top:1px solid #ffffff12;margin-top:26px;padding-top:20px;color:#9aabc0;font-size:11px}.loginFooter svg{width:15px;height:15px;flex:none}
+.loginPremium .loginSignature{margin:0;color:#8d9bb0;font-size:9px;letter-spacing:2.8px;text-align:center;line-height:1.7}
+@keyframes loginDrift{from{transform:rotate(-31deg) translateY(0)}to{transform:rotate(-29deg) translateY(16px)}}
+@media(max-width:480px){.loginPremium{padding:28px 18px;gap:20px}.loginPremium .loginCard{padding:28px 24px 23px;border-radius:23px}.loginBrand{margin-bottom:24px}.loginBrand img{width:150px}.ribbonOne{width:220%;left:-95%;top:0}.ribbonTwo{width:230%;left:-35%}}
+@media(prefers-reduced-motion:reduce){.loginPremium *{animation:none!important;transition:none!important}}
