@@ -61,13 +61,15 @@ export async function quotesPage({db,el,profile,back,onVisit,onFinance}){
     const search=el.querySelector('#clientSearch'),matches=el.querySelector('#clientMatches');
     function showMatches(){
       const term=normalize(search.value),doc=digits(search.value);
-      const found=clients.filter(c=>!term||normalize(c.nome).includes(term)||(doc&&digits(c.documento).includes(doc)));
+      if(!term){matches.replaceChildren();matches.hidden=true;return}
+      matches.hidden=false;
+      const found=clients.filter(c=>normalize(c.nome).includes(term)||(doc&&digits(c.documento).includes(doc)));
       matches.innerHTML=found.slice(0,20).map(c=>`<button type="button" class="ghost" data-client="${esc(c.id)}">${esc(capitalizeClient(c.nome))}${c.documento?` · ${esc(c.documento)}`:''}</button>`).join('')||'<p>Nenhum cliente encontrado. Preencha os dados abaixo para cadastrar.</p>';
       if(found.length>20)matches.insertAdjacentHTML('beforeend','<p class="muted">Digite mais detalhes para filtrar os clientes.</p>');
       matches.querySelectorAll('[data-client]').forEach(button=>button.onclick=()=>{
         const client=clients.find(c=>c.id===button.dataset.client);selectedClientId=client.id;
         for(const [field,key] of [['cliente','nome'],['documento','documento'],['telefone','telefone'],['email','email']])f.elements[field].value=field==='cliente'?capitalizeClient(client[key]):client[key]||'';
-        search.value=client.nome;matches.innerHTML='<p role="status">Cliente selecionado. Dados preenchidos.</p>';
+        search.value=client.nome;matches.replaceChildren();matches.hidden=true;
       });
     }
     search.oninput=showMatches;showMatches();
