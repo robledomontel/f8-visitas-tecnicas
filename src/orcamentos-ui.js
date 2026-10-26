@@ -1,6 +1,7 @@
 import {allRows,versioned,archive,today,result,showError} from './f8-utils.js';
 import {bindDraft} from './drafts.js';
 import { quotePdf } from './quote-pdf.js';
+import { quoteSignature } from './quote-signature.js';
 
 const ROBLEDO_ID='922c325a-19c7-45fc-958a-8c7e561a9a73';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -116,7 +117,7 @@ export async function quotesPage({db,el,profile,back,onVisit,onFinance}){
         preview.innerHTML=`<div class="reportActions"><button type="button" id="closeQuotePrint">Voltar</button><button type="button" id="shareQuotePdf">Compartilhar PDF</button></div><p id="quoteShareMessage" class="shareMessage" role="status"></p>
         <header><img src="/f8-logo.svg" alt="F8 Soluções em Tecnologia"></header><h1>Orçamento #${esc(current.numero)}</h1><p><b>Cliente:</b> ${esc(current.cliente)}<br><b>Projeto:</b> ${esc(current.projeto)}<br><b>Data:</b> ${date(current.data)} · <b>Validade:</b> ${date(current.validade)}<br><b>Contato:</b> ${esc(current.telefone)} ${esc(current.email)}</p>
         <table class="quotePrintTable"><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unitário</th><th>Total</th></tr></thead><tbody>${current.itens.map(i=>`<tr><td>${esc(i.descricao)}</td><td>${esc(i.quantidade)}</td><td>${money(i.valor)}</td><td>${money(numeric(i.quantidade)*numeric(i.valor))}</td></tr>`).join('')}</tbody></table>
-        <p><b>Desconto:</b> ${money(current.desconto)} · <b>Acréscimo:</b> ${money(current.acrescimo)}</p><h2>Total: ${money(total(current))}</h2><p><b>Pagamento:</b> ${esc(current.pagamento)}</p><p><b>Observações:</b> ${esc(current.observacoes)}</p><p>F8 Soluções em Tecnologia · WhatsApp (98) 99223-8387</p>`;
+        <p><b>Desconto:</b> ${money(current.desconto)} · <b>Acréscimo:</b> ${money(current.acrescimo)}</p><h2>Total: ${money(total(current))}</h2><p><b>Pagamento:</b> ${esc(current.pagamento)}</p><p><b>Observações:</b> ${esc(current.observacoes)}</p><div style="display:flex;gap:16px;margin-top:24px;break-inside:avoid"><div style="flex:1;min-width:0;text-align:center"><img src="${quoteSignature}" alt="Assinatura de Robledo Montel pela F8" style="display:block;width:68mm;max-width:100%;height:auto;margin:0 auto 2mm"><div style="border-top:1px solid #aab1b8;padding-top:6px">F8 Soluções em Tecnologia</div></div><div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;text-align:center"><div style="border-top:1px solid #aab1b8;padding-top:6px">${esc(current.cliente||'Cliente')}</div></div></div><p>F8 Soluções em Tecnologia · WhatsApp (98) 99223-8387</p>`;
         document.body.append(preview);preview.querySelector('#closeQuotePrint').onclick=()=>preview.remove();
         const filename=`Orcamento-F8-${String(current.numero||'sem-numero').replace(/[^a-zA-Z0-9_-]/g,'-')}.pdf`;
         const makeFile=()=>new File([quotePdf(current).output('blob')],filename,{type:'application/pdf'});
