@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { quoteLogo } from './quote-logo.js';
+import { quoteSignature } from './quote-signature.js';
 
 const number = value => Math.max(0, Number(value) || 0);
 const currency = value => number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -84,7 +85,9 @@ export function quotePdf(quote) {
     section('Condições do orçamento');detail('Pagamento',quote.pagamento);
     detail('Validade',quote.validade?date(quote.validade):'');detail('Observações',quote.observacoes);y+=7;
   }
-  ensure(29);y+=17;pdf.setDrawColor(170,177,184);pdf.line(left+1,y,left+91,y);pdf.line(left+95,y,left+185,y);
+  ensure(37);y+=25;
+  pdf.addImage(quoteSignature,'PNG',left+12,y-24,68,68*725/2168);
+  pdf.setDrawColor(170,177,184);pdf.line(left+1,y,left+91,y);pdf.line(left+95,y,left+185,y);
   text('F8 Soluções em Tecnologia',left+46,y+6,false,'center',9);
   font(false,9);const clientLines=pdf.splitTextToSize(quote.cliente||'Cliente',86);
   pdf.text(clientLines.slice(0,2),left+140,y+6,{align:'center'});
