@@ -191,3 +191,41 @@ nav i{font-style:normal;display:inline-block;min-width:24px;text-align:center;ma
 @keyframes loginDrift{from{transform:rotate(-31deg) translateY(0)}to{transform:rotate(-29deg) translateY(16px)}}
 @media(max-width:480px){.loginPremium{padding:28px 18px;gap:20px}.loginPremium .loginCard{padding:28px 24px 23px;border-radius:23px}.loginBrand{margin-bottom:24px}.loginBrand img{width:150px}.ribbonOne{width:220%;left:-95%;top:0}.ribbonTwo{width:230%;left:-35%}}
 @media(prefers-reduced-motion:reduce){.loginPremium *{animation:none!important;transition:none!important}}
+
+/* F8 glass surfaces: opaque fallback first, blur only on supported browsers. */
+:root{background:#eaf1f8}
+body{background:radial-gradient(ellipse at 8% 8%,#b9dcf7 0,transparent 45%),radial-gradient(ellipse at 95% 45%,#d3d0f2 0,transparent 42%),radial-gradient(ellipse at 45% 95%,#c9e9e5 0,transparent 45%),#eaf1f8;background-attachment:fixed}
+header{background:#f5f9fd;border-bottom-color:#ffffffb3;box-shadow:0 4px 24px #183b5c0c}
+.animatedNav,.hubMenu{background:linear-gradient(155deg,#183c56,#10283e);border:1px solid #ffffff30;box-shadow:0 18px 42px #102e4326,inset 0 1px 0 #ffffff12}
+.animatedNav button.active{background:#ffffff16;border-color:#ffffff30}
+.moreMenu{background:#16354d;border:1px solid #ffffff35;box-shadow:0 16px 40px #081d3033}
+.cards article,.cards .visitIndicator,.form,.inline,.row,.quoteItems,.quoteClientPicker,.financeChart,.dueCards button,.integrationPanel,.checklistBox,#snapshots,.agendaPush,.confirmDialog{background:#f8fbfe;border:1px solid #ffffffd9;box-shadow:0 8px 28px #1a3d6010,inset 0 1px 0 #fff}
+.photoBox{background:#f0f6fb;border-color:#cadbe9}
+input,select,textarea{background:#fffffff0;border-color:#c4d4e3;color:#172536}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #0876c933;outline-offset:1px;border-color:#0876c9}
+.ghost{background:#e5f0fa;color:#145f92;border:1px solid #c2d9ec}
+.cards span,.row span,.muted,.dueCards span{color:#526477}
+.confirmDialog::backdrop{background:#0d233a80}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+ header{background:#f5f9fdd9;-webkit-backdrop-filter:blur(20px) saturate(140%);backdrop-filter:blur(20px) saturate(140%)}
+ .animatedNav,.hubMenu{background:linear-gradient(155deg,#183c56dc,#10283ee8);-webkit-backdrop-filter:blur(22px) saturate(140%);backdrop-filter:blur(22px) saturate(140%)}
+ .moreMenu{background:#16354de8;-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px)}
+ .cards article,.cards .visitIndicator,.form,.inline,.row,.quoteItems,.quoteClientPicker,.financeChart,.dueCards button,.integrationPanel,.checklistBox,#snapshots,.agendaPush,.confirmDialog{background:linear-gradient(135deg,#ffffffd9,#ffffffad);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+}
+@media(hover:hover){
+ .cards .visitIndicator:hover,.dueCards button:hover{border-color:#81b4d8;box-shadow:0 10px 28px #0876c91c}
+}
+@media(max-width:720px){
+ body{background-attachment:scroll}
+ nav.animatedNav{border-color:#ffffff40;box-shadow:0 12px 34px #081d3040}
+ .cards article,.cards .visitIndicator,.row{-webkit-backdrop-filter:none;backdrop-filter:none;background:#ffffffdf}
+}
+@media(prefers-reduced-transparency:reduce){
+ header{background:#f5f9fd;-webkit-backdrop-filter:none;backdrop-filter:none}
+ .animatedNav,.hubMenu,.moreMenu{background:#15334b;-webkit-backdrop-filter:none;backdrop-filter:none}
+ .cards article,.cards .visitIndicator,.form,.inline,.row,.quoteItems,.quoteClientPicker,.financeChart,.dueCards button,.integrationPanel,.checklistBox,#snapshots,.agendaPush,.confirmDialog{background:#f8fbfe;-webkit-backdrop-filter:none;backdrop-filter:none}
+}
+@media print{
+ body{background:#fff!important}
+ header,.animatedNav,.hubMenu,.moreMenu,.cards article,.cards .visitIndicator,.form,.inline,.row,.quoteItems,.quoteClientPicker,.financeChart,.dueCards button,.integrationPanel,.checklistBox,#snapshots,.agendaPush,.confirmDialog{box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+}
