@@ -17,7 +17,9 @@ export default async function handler(req,res){
  const profileResponse=await fetch(DB+'/rest/v1/perfis?id=eq.'+OWNER+'&select=ativo',{headers,signal:AbortSignal.timeout(10000)});
  const profiles=profileResponse.ok?await profileResponse.json():[];
  if(!profiles[0]?.ativo)return res.status(403).json({error:'Usuário sem permissão.'});
- const credential=process.env.AI_GATEWAY_API_KEY||process.env.VERCEL_OIDC_TOKEN;
+ // Vercel Functions receive the current OIDC credential on each request.
+ const requestOidc=req.headers['x-vercel-oidc-token'];
+ const credential=process.env.AI_GATEWAY_API_KEY||(typeof requestOidc==='string'?requestOidc.trim():'')||process.env.VERCEL_OIDC_TOKEN;
  if(!credential)return res.status(503).json({error:'A Digitalização IA precisa ser ativada no servidor. A câmera e o envio normal de planta continuam disponíveis.'});
  if(req.method==='GET')return res.status(200).json({available:true});
  let body=req.body;if(typeof body==='string'){try{body=JSON.parse(body);}catch{return res.status(400).json({error:'Foto inválida.'});}}
