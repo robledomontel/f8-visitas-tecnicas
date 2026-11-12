@@ -12,7 +12,7 @@ const capitalizeClient=v=>String(v??'').replace(/^(\s*)(\S)/u,(_,space,first)=>s
 const date=v=>v?String(v).slice(0,10).split('-').reverse().join('/'):'—';
 
 
-function quoteDashboard(rows){
+function quoteDashboard(rows,selectedStatus="Todos"){
  const active=rows.filter(q=>!q.excluido_em);
  const statuses=['Aprovado','Enviado','Rascunho','Recusado'];
  const stats=statuses.map(status=>({status,items:active.filter(q=>q.status===status)})).map(s=>({...s,count:s.items.length,value:s.items.reduce((sum,q)=>sum+total(q),0)}));
@@ -24,8 +24,8 @@ function quoteDashboard(rows){
  return `<section class="box" aria-label="Dashboard comercial" style="margin:18px 0;padding:20px">
  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h2 style="margin:0">Dashboard de orçamentos</h2><p class="muted" style="margin:5px 0">Dados ativos · atualização automática a cada 30 segundos</p></div><button type="button" class="ghost" id="refreshQuoteDashboard">Atualizar agora</button></div>
  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:18px 0">
- <div class="row" style="display:block;padding:14px"><small>Total orçado</small><h3 style="margin:8px 0">${money(overall)}</h3><small>${active.length} orçamentos</small></div>
- ${stats.map(s=>`<div class="row" style="display:block;padding:14px;border-top:3px solid ${palette[s.status]}"><small>${s.status}s</small><h3 style="margin:8px 0">${money(s.value)}</h3><small>${s.count} orçamentos</small></div>`).join('')}
+ <button type="button" data-quote-filter="Todos" aria-pressed="${selectedStatus==='Todos'}" class="row" style="display:block;padding:14px;text-align:left;cursor:pointer;outline:${selectedStatus==='Todos'?'2px solid #2479d8':'none'}"><small>Total orçado</small><h3 style="margin:8px 0">${money(overall)}</h3><small>${active.length} orçamentos</small></button>
+ ${stats.map(s=>`<button type="button" data-quote-filter="${s.status}" aria-pressed="${selectedStatus===s.status}" class="row" style="display:block;padding:14px;text-align:left;cursor:pointer;border-top:3px solid ${palette[s.status]};outline:${selectedStatus===s.status?'2px solid #2479d8':'none'}"><small>${s.status}s</small><h3 style="margin:8px 0">${money(s.value)}</h3><small>${s.count} orçamentos</small></button>`).join('')}
  <div class="row" style="display:block;padding:14px"><small>Taxa de aprovação</small><h3 style="margin:8px 0">${conversion.toLocaleString('pt-BR',{maximumFractionDigits:1})}%</h3><small>${approved} de ${decided} enviados ou decididos</small></div>
  </div>
  <h3 style="margin:8px 0">Distribuição dos valores</h3>
@@ -39,23 +39,34 @@ export async function quotesPage({db,el,profile,back,onVisit,onFinance}){
   if(error){el.innerHTML='<p class="notice">Não foi possível carregar os orçamentos. Tente novamente.</p>';return}
   let rows=(data||[]).filter(q=>!q.excluido_em);
   let refreshing=false;
+  let selectedStatus="Todos";
+  let searchTerm="";
+  function bindDashboard(){const panel=el.querySelector("#quoteDashboard");if(!panel)return;panel.querySelector("#refreshQuoteDashboard").onclick=refreshDashboard;panel.querySelectorAll("[data-quote-filter]").forEach(button=>button.onclick=()=>{selectedStatus=button.dataset.quoteFilter;list(searchTerm);});}
   async function refreshDashboard(){
     if(refreshing||!el.isConnected||!el.querySelector('#quoteDashboard'))return;
     refreshing=true;
-    try{const latest=await allRows(()=>db.from('orcamentos_f8').select('*').order('criado_em',{ascending:false}).order('id'));rows=(latest||[]).filter(q=>!q.excluido_em);const panel=el.querySelector('#quoteDashboard');if(panel){panel.innerHTML=quoteDashboard(rows);panel.querySelector('#refreshQuoteDashboard').onclick=refreshDashboard;}}
+    try{const latest=await allRows(()=>db.from('orcamentos_f8').select('*').order('criado_em',{ascending:false}).order('id'));rows=(latest||[]).filter(q=>!q.excluido_em);const panel=el.querySelector('#quoteDashboard');if(panel){panel.innerHTML=quoteDashboard(rows,selectedStatus);bindDashboard();renderQuoteList();}}
     catch(e){const panel=el.querySelector('#quoteDashboard');if(panel){const notice=panel.querySelector('.quoteRefreshError')||document.createElement('p');notice.className='quoteRefreshError notice';notice.textContent='Não foi possível atualizar. Os últimos valores permanecem visíveis.';panel.append(notice);}}
     finally{refreshing=false;}
   }
   const interval=setInterval(()=>{if(!el.isConnected){clearInterval(interval);return}if(!document.hidden)refreshDashboard()},30000);
-  function list(query=''){
-    const filtered=rows.filter(q=>(q.cliente+' '+q.numero+' '+q.projeto).toLowerCase().includes(query.toLowerCase()));
+  function renderQuoteList(){
+    const filtered=rows.filter(q=>(selectedStatus==='Todos'||q.status===selectedStatus)&&(q.cliente+' '+q.numero+' '+q.projeto).toLowerCase().includes(searchTerm.toLowerCase()));
+    const target=el.querySelector('.quoteList');if(!target)return;
+    target.innerHTML=filtered.map(q=>`<article class="row quoteRow"><div><b>#${esc(q.numero)} · ${esc(q.cliente)}</b><span>${esc(q.projeto||'Sem título')} · ${date(q.data)} · ${esc(q.status)}</span></div><div class="actions"><strong>${money(total(q))}</strong><button data-edit="${q.id}" class="ghost">Abrir</button></div></article>`).join('')||'<p class="notice">Nenhum orçamento encontrado para o filtro selecionado.</p>';
+    target.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>form(rows.find(q=>q.id===b.dataset.edit)));
+  }
+  function list(query=searchTerm){
+    searchTerm=query;
+    
     el.innerHTML=`<div class="welcome"><div><h1>Orçamentos</h1><p class="muted">Propostas comerciais da F8</p></div><button id="newQuote" class="primary">+ Novo orçamento</button></div>
-      <div id="quoteDashboard">${quoteDashboard(rows)}</div><div class="quoteToolbar"><input id="quoteSearch" aria-label="Buscar orçamento" placeholder="Buscar cliente, projeto ou número" value="${esc(query)}"></div>
-      <div class="quoteList">${filtered.map(q=>`<article class="row quoteRow"><div><b>#${esc(q.numero)} · ${esc(q.cliente)}</b><span>${esc(q.projeto||'Sem título')} · ${date(q.data)} · ${esc(q.status)}</span></div><div class="actions"><strong>${money(total(q))}</strong><button data-edit="${q.id}" class="ghost">Abrir</button></div></article>`).join('')||'<p class="notice">Nenhum orçamento encontrado.</p>'}</div>`;
-    el.querySelector('#refreshQuoteDashboard').onclick=refreshDashboard;
+      <div id="quoteDashboard">${quoteDashboard(rows,selectedStatus)}</div><div class="quoteToolbar"><input id="quoteSearch" aria-label="Buscar orçamento" placeholder="Buscar cliente, projeto ou número" value="${esc(query)}"></div>
+      <div class="quoteList"></div>`;
+    bindDashboard();
+    renderQuoteList();
     el.querySelector('#newQuote').onclick=()=>form();
     el.querySelector('#quoteSearch').oninput=e=>{const value=e.target.value;list(value);const input=el.querySelector('#quoteSearch');input.focus();input.setSelectionRange(value.length,value.length)};
-    el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>form(rows.find(q=>q.id===b.dataset.edit)));
+
   }
   async function form(q){
     const clients=[];
