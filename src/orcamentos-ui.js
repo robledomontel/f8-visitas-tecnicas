@@ -12,8 +12,13 @@ const capitalizeClient=v=>String(v??'').replace(/^(\s*)(\S)/u,(_,space,first)=>s
 const date=v=>v?String(v).slice(0,10).split('-').reverse().join('/'):'—';
 
 
-function quoteDashboard(rows,selectedStatus="Todos"){
- const active=rows.filter(q=>!q.excluido_em);
+
+const quoteDate=q=>String(q.data||q.criado_em||'').slice(0,10);
+function periodRows(rows,period,year,month,start,end){return rows.filter(q=>{const d=quoteDate(q);if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(d))return period==='all';if(period==='year')return d.slice(0,4)===year;if(period==='month')return d.slice(0,7)===year+'-'+month;if(period==='range')return (!start||d>=start)&&(!end||d<=end);return true;});}
+function trendChart(rows,period){const buckets=new Map(),daily=period==='month';rows.forEach(q=>{const d=quoteDate(q);if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(d))return;const k=daily?d:d.slice(0,7);buckets.set(k,(buckets.get(k)||0)+total(q));});const keys=[...buckets.keys()].sort();if(!keys.length)return '<p class="muted">Sem dados para o período selecionado.</p>';const max=Math.max(1,...buckets.values());return '<div style="display:flex;align-items:end;gap:8px;overflow-x:auto;padding:12px 0" role="img" aria-label="Evolução dos orçamentos">'+keys.map(k=>'<div style="flex:1 0 65px;text-align:center"><small>'+money(buckets.get(k))+'</small><div style="height:120px;display:flex;align-items:end;justify-content:center"><div style="width:75%;height:'+Math.max(3,buckets.get(k)/max*115)+'px;background:#2479d8;border-radius:5px 5px 0 0"></div></div><small>'+(daily?k.slice(8,10):k.slice(5)+'/'+k.slice(2,4))+'</small></div>').join('')+'</div>';}
+
+function quoteDashboard(rows,selectedStatus="Todos",period="all",year="",month="",start="",end=""){
+ const active=periodRows(rows.filter(q=>!q.excluido_em),period,year,month,start,end);
  const statuses=['Aprovado','Enviado','Rascunho','Recusado'];
  const stats=statuses.map(status=>({status,items:active.filter(q=>q.status===status)})).map(s=>({...s,count:s.items.length,value:s.items.reduce((sum,q)=>sum+total(q),0)}));
  const overall=active.reduce((sum,q)=>sum+total(q),0);
@@ -23,11 +28,19 @@ function quoteDashboard(rows,selectedStatus="Todos"){
  const palette={'Aprovado':'#14875b','Enviado':'#2479d8','Rascunho':'#b27a18','Recusado':'#c44b4b'};
  return `<section class="box" aria-label="Dashboard comercial" style="margin:18px 0;padding:20px">
  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h2 style="margin:0">Dashboard de orçamentos</h2><p class="muted" style="margin:5px 0">Dados ativos · atualização automática a cada 30 segundos</p></div><button type="button" class="ghost" id="refreshQuoteDashboard">Atualizar agora</button></div>
+ <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:16px 0">
+ <label>Período<select id="quotePeriod"><option value="all" ${period==='all'?'selected':''}>Todo o histórico</option><option value="month" ${period==='month'?'selected':''}>Mês</option><option value="year" ${period==='year'?'selected':''}>Ano</option><option value="range" ${period==='range'?'selected':''}>Intervalo de datas</option></select></label>
+ ${(period==='month'||period==='year')?`<label>Ano<input id="quoteYear" type="number" min="2000" max="2100" value="${esc(year)}"></label>`:''}
+ ${period==='month'?`<label>Mês<select id="quoteMonth">${Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')).map(m=>`<option value="${m}" ${month===m?'selected':''}>${m}</option>`).join('')}</select></label>`:''}
+ ${period==='range'?`<label>De<input id="quoteStart" type="date" value="${esc(start)}"></label><label>Até<input id="quoteEnd" type="date" value="${esc(end)}"></label>`:''}
+ </div>
  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:18px 0">
  <button type="button" data-quote-filter="Todos" aria-pressed="${selectedStatus==='Todos'}" class="row" style="display:block;padding:14px;text-align:left;cursor:pointer;color:#172536;background:#fff;outline:${selectedStatus==='Todos'?'2px solid #2479d8':'none'}"><small>Total orçado</small><h3 style="margin:8px 0">${money(overall)}</h3><small>${active.length} orçamentos</small></button>
  ${stats.map(s=>`<button type="button" data-quote-filter="${s.status}" aria-pressed="${selectedStatus===s.status}" class="row" style="display:block;padding:14px;text-align:left;cursor:pointer;color:#172536;background:#fff;border-top:3px solid ${palette[s.status]};outline:${selectedStatus===s.status?'2px solid #2479d8':'none'}"><small>${s.status}s</small><h3 style="margin:8px 0">${money(s.value)}</h3><small>${s.count} orçamentos</small></button>`).join('')}
  <div class="row" style="display:block;padding:14px"><small>Taxa de aprovação</small><h3 style="margin:8px 0">${conversion.toLocaleString('pt-BR',{maximumFractionDigits:1})}%</h3><small>${approved} de ${decided} enviados ou decididos</small></div>
  </div>
+ <h3 style="margin:8px 0">Evolução por período</h3>
+ ${trendChart(selectedStatus==='Todos'?active:active.filter(q=>q.status===selectedStatus),period)}
  <h3 style="margin:8px 0">Distribuição dos valores</h3>
  ${stats.map(s=>`<div style="margin:10px 0"><div style="display:flex;justify-content:space-between;gap:10px"><span>${s.status}</span><strong>${money(s.value)}</strong></div><div style="height:10px;background:#dfe6ed;border-radius:8px;overflow:hidden"><div style="height:100%;width:${overall?Math.min(100,s.value/overall*100):0}%;background:${palette[s.status]}"></div></div></div>`).join('')}
  <p class="muted" style="margin-bottom:0">Aprovação não significa recebimento. Valores incluem itens, descontos e acréscimos.</p></section>`;
@@ -41,17 +54,20 @@ export async function quotesPage({db,el,profile,back,onVisit,onFinance}){
   let refreshing=false;
   let selectedStatus="Todos";
   let searchTerm="";
-  function bindDashboard(){const panel=el.querySelector("#quoteDashboard");if(!panel)return;panel.querySelector("#refreshQuoteDashboard").onclick=refreshDashboard;panel.querySelectorAll("[data-quote-filter]").forEach(button=>button.onclick=()=>{selectedStatus=button.dataset.quoteFilter;list(searchTerm);});}
+  let period="all",year=String(new Date().getFullYear()),month=String(new Date().getMonth()+1).padStart(2,"0"),start="",end="";
+  const filteredByPeriod=()=>periodRows(rows,period,year,month,start,end);
+  const dashboardHtml=()=>quoteDashboard(rows,selectedStatus,period,year,month,start,end);
+  function bindDashboard(){const panel=el.querySelector("#quoteDashboard");if(!panel)return;panel.querySelector("#refreshQuoteDashboard").onclick=refreshDashboard;panel.querySelectorAll("[data-quote-filter]").forEach(button=>button.onclick=()=>{selectedStatus=button.dataset.quoteFilter;list(searchTerm);});const change=(id,cb)=>{const input=panel.querySelector(id);if(input)input.onchange=e=>{cb(e.target.value);list(searchTerm)}};change('#quotePeriod',v=>period=v);change('#quoteYear',v=>year=v);change('#quoteMonth',v=>month=v);change('#quoteStart',v=>start=v);change('#quoteEnd',v=>end=v);}
   async function refreshDashboard(){
     if(refreshing||!el.isConnected||!el.querySelector('#quoteDashboard'))return;
     refreshing=true;
-    try{const latest=await allRows(()=>db.from('orcamentos_f8').select('*').order('criado_em',{ascending:false}).order('id'));rows=(latest||[]).filter(q=>!q.excluido_em);const panel=el.querySelector('#quoteDashboard');if(panel){panel.innerHTML=quoteDashboard(rows,selectedStatus);bindDashboard();renderQuoteList();}}
+    try{const latest=await allRows(()=>db.from('orcamentos_f8').select('*').order('criado_em',{ascending:false}).order('id'));rows=(latest||[]).filter(q=>!q.excluido_em);const panel=el.querySelector('#quoteDashboard');if(panel){panel.innerHTML=dashboardHtml();bindDashboard();renderQuoteList();}}
     catch(e){const panel=el.querySelector('#quoteDashboard');if(panel){const notice=panel.querySelector('.quoteRefreshError')||document.createElement('p');notice.className='quoteRefreshError notice';notice.textContent='Não foi possível atualizar. Os últimos valores permanecem visíveis.';panel.append(notice);}}
     finally{refreshing=false;}
   }
   const interval=setInterval(()=>{if(!el.isConnected){clearInterval(interval);return}if(!document.hidden)refreshDashboard()},30000);
   function renderQuoteList(){
-    const filtered=rows.filter(q=>(selectedStatus==='Todos'||q.status===selectedStatus)&&(q.cliente+' '+q.numero+' '+q.projeto).toLowerCase().includes(searchTerm.toLowerCase()));
+    const filtered=filteredByPeriod().filter(q=>(selectedStatus==='Todos'||q.status===selectedStatus)&&(q.cliente+' '+q.numero+' '+q.projeto).toLowerCase().includes(searchTerm.toLowerCase()));
     const target=el.querySelector('.quoteList');if(!target)return;
     target.innerHTML=filtered.map(q=>`<article class="row quoteRow"><div><b>#${esc(q.numero)} · ${esc(q.cliente)}</b><span>${esc(q.projeto||'Sem título')} · ${date(q.data)} · ${esc(q.status)}</span></div><div class="actions"><strong>${money(total(q))}</strong><button data-edit="${q.id}" class="ghost">Abrir</button></div></article>`).join('')||'<p class="notice">Nenhum orçamento encontrado para o filtro selecionado.</p>';
     target.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>form(rows.find(q=>q.id===b.dataset.edit)));
@@ -60,7 +76,7 @@ export async function quotesPage({db,el,profile,back,onVisit,onFinance}){
     searchTerm=query;
     
     el.innerHTML=`<div class="welcome"><div><h1>Orçamentos</h1><p class="muted">Propostas comerciais da F8</p></div><button id="newQuote" class="primary">+ Novo orçamento</button></div>
-      <div id="quoteDashboard">${quoteDashboard(rows,selectedStatus)}</div><div class="quoteToolbar"><input id="quoteSearch" aria-label="Buscar orçamento" placeholder="Buscar cliente, projeto ou número" value="${esc(query)}"></div>
+      <div id="quoteDashboard">${dashboardHtml()}</div><div class="quoteToolbar"><input id="quoteSearch" aria-label="Buscar orçamento" placeholder="Buscar cliente, projeto ou número" value="${esc(query)}"></div>
       <div class="quoteList"></div>`;
     bindDashboard();
     renderQuoteList();
