@@ -35,14 +35,14 @@ function setBusy(value) {
   busy = value;
   document.querySelectorAll('nav button, #out, #page button, #page input, #page select, #page textarea').forEach(control => { control.disabled = value; });
 }
-export async function manageVisits({db, el, profile, report, edit, filter = null, clearFilter}) {
+export async function manageVisits({db, el, profile, report, edit, filter = null, clearFilter, category='arklok'}) {
   const service = visitService(db);
   el.innerHTML = '<h1>Gerenciar visitas</h1><p role="status">Carregando visitas…</p>';
   try {
     // Fetch in pages so the Supabase default row limit never hides older visits.
     const visits = [];
     for (let start = 0; ; start += 500) {
-      const query = applyVisitDashboardFilter(db.from('visitas').select('*,clientes(nome)'), filter);
+      const query = applyVisitDashboardFilter(db.from('visitas').select('*,clientes(nome)').eq('ficha_categoria',category), filter);
       const batch = checked(await query.order('numero', {ascending:false}).range(start, start + 499));
       visits.push(...batch.filter(v=>!v.excluido_em)); if (batch.length < 500) break;
     }
@@ -87,14 +87,14 @@ export async function manageVisits({db, el, profile, report, edit, filter = null
   } catch (error) {el.innerHTML = `<h1>Gerenciar visitas</h1><p role="alert">Não foi possível carregar: ${esc(error.message)}</p>`;}
 }
 
-export async function visitForm({db, el, id, back}) {
+export async function visitForm({db, el, id, back, category='arklok'}) {
   const service = visitService(db);
   el.innerHTML = '<p role="status">Carregando cadastro…</p>';
   let visit, photos, clients;
   try {
     [clients, visit, photos] = await Promise.all([
       allRows(()=>db.from('clientes').select('id,nome,excluido_em').order('nome').order('id')),
-      id ? db.from('visitas').select('*').eq('id',id).single().then(checked) : null,
+      id ? db.from('visitas').select('*').eq('id',id).eq('ficha_categoria',category).single().then(checked) : null,
       id ? allRows(()=>db.from('fotos_visita').select('*').eq('visita_id',id).order('criado_em').order('id')) : [],
     ]);
   } catch (error) {el.innerHTML = `<p role="alert">Não foi possível abrir o cadastro: ${esc(error.message)}</p>`; return;}
@@ -121,7 +121,7 @@ export async function visitForm({db, el, id, back}) {
       <div id="newPhotos" class="photoGrid"></div>
     </section><button class="wide" id="saveVisit">${id ? 'Salvar alterações' : 'Salvar visita'}</button></form>`;
   const form = el.querySelector('#visit'), message = el.querySelector('#saveMessage');
-  const checklist=checklistEditor(form,v.checklist||[]);const draft=bindDraft(form,'visita:'+(id||'nova'),{collect:()=>Object.fromEntries([...form.elements].filter(e=>e.name&&e.type!=='file').map(e=>[e.name,e.type==='checkbox'?e.checked:e.value])),apply:values=>{for(const e of form.elements){if(e.name in values&&e.type!=='file'){if(e.type==='checkbox')e.checked=values[e.name];else e.value=values[e.name];}}checklist.refresh();}});
+  const checklist=checklistEditor(form,v.checklist||[]);const draft=bindDraft(form,'visita:'+(category==='arklok'?'':category+':')+(id||'nova'),{collect:()=>Object.fromEntries([...form.elements].filter(e=>e.name&&e.type!=='file').map(e=>[e.name,e.type==='checkbox'?e.checked:e.value])),apply:values=>{for(const e of form.elements){if(e.name in values&&e.type!=='file'){if(e.type==='checkbox')e.checked=values[e.name];else e.value=values[e.name];}}checklist.refresh();}});
   const pending = [];
   dispose = () => pending.forEach(item => URL.revokeObjectURL(item.url));
   form.oninput = () => {dirty = true;}; form.onchange = () => {dirty = true;};
@@ -171,7 +171,7 @@ export async function visitForm({db, el, id, back}) {
   };
   form.onsubmit = async event => {
     event.preventDefault(); if (busy) return;if(!checklist.validate()){message.textContent='Conclua os itens do checklist ou marque Não se aplica antes de concluir a visita.';return;}
-    const payload = visitPayload(new FormData(form));
+    const payload = {...visitPayload(new FormData(form)),ficha_categoria:category};
     // A prior location remains stored unless the visit moves to another client.
     if (visit && payload.cliente_id !== visit.cliente_id) payload.local_id = null;
     setBusy(true); message.textContent = 'Salvando visita…';

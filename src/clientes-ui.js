@@ -11,7 +11,7 @@ export function clientPayload(form) {
   return Object.fromEntries(fields.map(name => [name, form.elements[name].value.trim() || null]));
 }
 
-export async function clientsPage({db, el,profile,onVisit}) {
+export async function clientsPage({db, el,profile,onVisit,category='arklok'}) {
   el.innerHTML = '<h1>Clientes</h1><p id="clientMessage" role="status"></p><div id="clientForm"></div><div id="clientList"></div>';
   const message = el.querySelector('#clientMessage');
   let clients;
@@ -20,7 +20,7 @@ export async function clientsPage({db, el,profile,onVisit}) {
     if (error) { message.textContent = `Não foi possível carregar clientes: ${error.message}`; return; }
     clients = data || [];
     el.querySelector('#clientList').innerHTML = clients.map(c => `<article class="row reportRow"><div><b>${esc(c.nome)}</b><span>${esc([c.cidade,c.estado].filter(Boolean).join(' / '))}${c.telefone ? ` · ${esc(c.telefone)}` : ''}</span></div><div class="actions"><button type="button" data-file="${esc(c.id)}">Ficha completa</button><button type="button" data-edit="${esc(c.id)}">Editar</button><button type="button" class="danger" data-delete="${esc(c.id)}">Apagar</button></div></article>`).join('') || '<p>Nenhum cliente cadastrado.</p>';
-    el.querySelectorAll('[data-file]').forEach(b=>b.onclick=()=>clientFile({db,el,profile,client:clients.find(c=>c.id===b.dataset.file),back:()=>clientsPage({db,el,profile,onVisit}),onVisit}));
+    el.querySelectorAll('[data-file]').forEach(b=>b.onclick=()=>clientFile({db,el,profile,client:clients.find(c=>c.id===b.dataset.file),category,back:()=>clientsPage({db,el,profile,onVisit,category}),onVisit}));
     el.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => showForm(clients.find(c => c.id === b.dataset.edit)));
     el.querySelectorAll('[data-delete]').forEach(b => b.onclick = () => remove(clients.find(c => c.id === b.dataset.delete)));
   }
