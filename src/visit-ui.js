@@ -106,6 +106,7 @@ export async function visitForm({db, el, id, back, category='arklok'}) {
   if (v.tipo) types[v.tipo] = v.tipo;
   const allStatuses = {...statuses}; if (v.status) allStatuses[v.status] ||= v.status;
   el.innerHTML = `<div class="welcome"><h1>${id ? `Editar visita #${v.numero}` : 'Nova visita técnica'}</h1><button type="button" class="ghost" id="backVisits">Voltar</button></div><p role="status" id="saveMessage"></p><form id="visit" class="form">
+    <label>n.<input name="numero_chamado" type="text" value="${esc(v.numero_chamado || '')}"></label>
     <label>Cliente<select name="cliente_id" required><option value="">Selecione</option>${clients.map(c => `<option value="${c.id}" ${c.id === v.cliente_id ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></label>
     ${input('data_visita','Data','date','required')}${input('hora_chegada','Hora chegada','time','step="1"')}${input('hora_saida','Hora saída','time','step="1"')}
     ${input('responsavel_local','Responsável no local')}${input('telefone_responsavel','Telefone responsável','tel')}
