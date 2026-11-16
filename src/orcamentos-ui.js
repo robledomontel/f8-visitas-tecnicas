@@ -148,7 +148,7 @@ export async function quotesPage({db,el,profile,back,onVisit,onFinance}){
     function getItems(){return [...items.children].map(x=>({descricao:x.querySelector('.itemDesc').value.trim(),quantidade:Number(x.querySelector('.itemQty').value),valor:Number(x.querySelector('.itemPrice').value)}))}
     function calculate(){el.querySelector('#quoteTotal').textContent=money(total({itens:getItems(),desconto:f.elements.desconto.value,acrescimo:f.elements.acrescimo.value}))}
     q.itens.forEach(addItem);calculate();const draft=bindDraft(f,'orcamento:'+(q.id||'novo'),{collect:()=>({campos:Object.fromEntries(new FormData(f)),itens:getItems()}),apply:values=>{for(const [key,value] of Object.entries(values.campos||{})){if(f.elements[key])f.elements[key].value=value;}items.replaceChildren();(values.itens||[]).forEach(addItem);const pay=values.campos?.pagamento||'';paymentType.value=pay.startsWith('Crédito')?'Crédito':pay;installments.value=(pay.match(/(\d+)x/)||[])[1]||'1';syncPayment();selectedClientId=null;calculate();}});
-    f.oninput=calculate;el.querySelector('#addQuoteItem').onclick=()=>addItem();
+    f.oninput=calculate;el.querySelector('#addQuoteItem').onclick=()=>{addItem({descricao:'',quantidade:'',valor:''});const newLine=items.lastElementChild;for(const input of newLine.querySelectorAll('input')){input.value='';input.setAttribute('autocomplete','off');}calculate();newLine.querySelector('.itemDesc').focus();};
     el.querySelector('#backQuotes').onclick=()=>list();el.querySelector('#cancelQuote').onclick=()=>list();
     f.onsubmit=async e=>{
       e.preventDefault();if(!items.children.length){message.textContent='Adicione pelo menos um item.';return}
